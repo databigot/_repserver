@@ -6,7 +6,7 @@ import os
 import sys
 
 app = Flask(__name__)
-oid = OpenID(app)
+oid = OpenID(app, '/tmp/'+str(os.getuid()))
 
 @app.context_processor
 def inject_now():
