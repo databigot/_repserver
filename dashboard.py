@@ -2,6 +2,8 @@ import psycopg2
 from flask import Flask, url_for, render_template, g, session, request, redirect, abort
 from flaskext.openid import OpenID, COMMON_PROVIDERS
 import datetime
+import os
+import sys
 
 app = Flask(__name__)
 oid = OpenID(app)
@@ -301,8 +303,20 @@ def listpubs():
 
 
 if __name__ == "__main__":
+    port = 10000+os.getuid()
+    if len(sys.argv) > 1:
+        if '-production' in sys.argv:
+            port = 80
+	
     app.debug = True
     app.secret_key = "sudo that shit, yo"
-    app.run(host='0.0.0.0')
+
+    try:
+        app.run(host='0.0.0.0', port=port)
+    except Exception as e:
+        print 'Error running on port %s.' % port
+        if port == 80:
+            print 'Remember, port 80 is protected, so sudo that shit yo.'
+        print 'Exception detail:', e
 
 
