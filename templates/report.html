@@ -1,0 +1,77 @@
+{% macro render_list(cols, rows) -%}
+<div class=offerlist>
+<table>
+<thead>
+<tr>
+	{% for c in cols %}<th>{{ c }}</th>
+	{% endfor %}
+</tr></thead>
+<tbody>
+{% for o in rows %}
+<tr class="row">
+	{% for cell in o %}
+	<td class="{{ cell }}">{{ cell }}</td>
+	{% endfor %}
+</tr>
+{% endfor %}
+</table>
+</div>
+{%- endmacro %}
+
+<html>
+<head>
+<title>Report, yo!</title>
+<style type="text/css">
+body {
+	font-family: arial;
+	font-size:8pt;
+}
+
+tr {
+	font-weight:bold;
+	font-size:8pt;
+}
+
+thead {
+	background-color:white;
+	
+	font-size:12pt
+}
+
+td.offerstatus {
+	width:70px;
+}
+
+td.rescount {
+	width:30px;
+}
+
+td.pubname {
+	width:120px;
+}
+
+td.offername {
+	width:240px;
+}
+
+td.date {
+	width:70px;
+}
+
+div.offerlist {
+	height:200px;
+	width:910px;
+	overflow:auto;
+	border:1px solid #dddddd;
+}
+
+
+</style>
+</head>
+<body>
+<h2>{{ report_title }}</h2>
+{{ render_list( cols,rows) }}
+<br />
+
+</body>
+</html>

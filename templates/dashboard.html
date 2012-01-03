@@ -1,0 +1,100 @@
+{% macro render_list(list) -%}
+<div class=offerlist>
+<table>
+<tr>
+	<td>Publisher</td>
+	<td>Offer</td>
+	<td>Status</td>
+	<td>Start</td>
+	<td>End</td>
+	<td><a title="Completed">C</a></td>
+	<td><a title="Submitted">S</a></td>
+	<td><a title="Pending">P</a></td>
+	<td><a title="Unverified">U</a></td>
+	<td><a title="Reopened">R</a></td>
+	<td><a title="Aborted">A</a></td>
+	<td><a title="Voided">V</a></td>
+	<td><a title="Failed">F</a></td>
+	<td>Auto</td>
+</tr>
+{% for o in list %}
+<tr class="offer{% if o["failed%"] > 25 %}alert{% endif %}">
+	<td class=pubname>{{ o["pub_name"] }}</td>
+	<td class=offername>{{ o["offer_name"] }}</td>
+	<td class=offferstatus>{{ o["offstatus"] }}</td>
+	<td class=date>{{ o["start_date"].strftime( "%Y-%m-%d" ) }}&nbsp;</td>
+	<td class=date>{{ o["end_date"].strftime( "%Y-%m-%d" ) }}&nbsp;</td>
+	<td class=rescount>{{ o["statii"].get("completed"," ") }}</td>
+	<td class=rescount>{{ o["statii"].get("submitted"," ") }}</td>
+	<td class=rescount>{{ o["statii"].get("pending"," ") }}</td>
+	<td class=rescount>{{ o["statii"].get("unverified"," ") }}</td>
+	<td class=rescount>{{ o["statii"].get("reopened"," ") }}</td>
+	<td class=rescount>{{ o["statii"].get("aborted"," ") }}</td>
+	<td class=rescount>{{ o["statii"].get("voided"," ") }}</td>
+	<td class=rescount>{{ o["statii"].get("failed"," ") }}</td>
+	<td>{{ o["automatable"] }} </td>
+</tr>
+{% endfor %}
+</table>
+</div>
+{%- endmacro %}
+
+<html>
+<head>
+<title>Dashboard, yo!</title>
+<style type="text/css">
+body {
+	font-family: arial;
+	font-size:8pt;
+}
+
+tr.offeralert {
+	font-weight:bold;
+	font-size:8pt;
+}
+
+tr.offer {
+	background-color:white;
+	color:black;
+	font-size:8pt
+}
+
+td.offerstatus {
+	width:70px;
+}
+
+td.rescount {
+	width:30px;
+}
+
+td.pubname {
+	width:120px;
+}
+
+td.offername {
+	width:240px;
+}
+
+td.date {
+	width:70px;
+}
+
+div.offerlist {
+	height:200px;
+	width:910px;
+	overflow:auto;
+	border:1px solid #dddddd;
+}
+
+
+</style>
+</head>
+<body>
+<h2>Current Offers</h2>
+{{ render_list( current ) }}
+<br />
+<h2>Recent Troubled Offers</h2>
+{{ render_list( failed ) }}
+
+</body>
+</html>
