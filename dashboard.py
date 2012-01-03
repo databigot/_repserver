@@ -278,7 +278,7 @@ def dealcats(id=None):
 @app.route("/pubreps/")
 def listpubs():
     sql = """
-        select title,name,id from core_publisher where status = 'active';
+        select title,name,id from core_publisher where status = 'active' order by title;
     """
     cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
