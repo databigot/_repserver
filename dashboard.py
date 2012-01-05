@@ -1,9 +1,14 @@
 import psycopg2
 from flask import Flask, url_for, render_template, g, session, request, redirect, abort
+import jinja2
 from flaskext.openid import OpenID, COMMON_PROVIDERS
 import datetime
 import os
 import sys
+import HTMLParser
+
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
 app = Flask(__name__)
 oid = OpenID(app, '/tmp/'+str(os.getuid()))
@@ -355,10 +360,12 @@ if __name__ == "__main__":
         if '-production' in sys.argv:
             port = 80
 	
+
     app.debug = True
     app.secret_key = "sudo that shit, yo"
 
     try:
+
         app.run(host='0.0.0.0', port=port)
     except Exception as e:
         print 'Error running on port %s.' % port

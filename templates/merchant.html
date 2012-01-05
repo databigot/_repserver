@@ -43,7 +43,7 @@
 
       // add rows
       {% for r in rows %}
-      dataTable.addRow( [ "{{ r.end_date.strftime( '%m/%d/%y' ) }}", "{{ r.name | e }}", "{{ r.headline }}", "{{ r.city }}", "{{ r.count }}", "{{ r.sum }}" ] );
+      dataTable.addRow( [ "{{ r.end_date.strftime( '%m/%d/%y' ) }}", "{{ r.name | safe }}", "{{ r.headline | safe }}", "{{ r.city }}", "{{ r.count }}", "{{ r.sum }}" ] );
       {% endfor %}
 
       // draw the actual table
