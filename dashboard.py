@@ -142,6 +142,22 @@ def throw_sql(sql):
         print "I am unable to connect to the database", e
         return None
 
+def execute_sql( sql, params ):
+    try:
+        conn = psycopg2.connect("dbname='silos' user='django' host='127.0.0.1'")
+        curr = conn.cursor()
+        curr.execute( sql, params )
+        results = curr.fetchall()
+        cols = [x.name for x in curr.description]
+
+	rows = [ dict( zip( cols, r ) ) for r in results ]
+        return rows
+    except Exception as e:
+	raise e
+        print "exception executing sql", e
+        return None
+
+
 def sql_simple_fetchrow(sql):
     try:
         conn = psycopg2.connect("dbname='silos' user='django' host='127.0.0.1'");
@@ -224,6 +240,37 @@ def referrals_for_account2(id=''):
     context = {};
     TITLE='REFERRED TRANSACTION REPORT'; SUBTITLE= ' BY STATUS';
     return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+
+
+merchant_sql = ( "select o.end_date, ad.name, o.headline, g.title city, count(i.id), sum(i.amount)"
+  		 "   from core_advertiser ad, core_offer o, core_publisher p, core_channel c, core_geography g, core_item i, core_transaction t"
+		 "  where (o.advertiser_id = ad.id)"
+		 "    and (o.publisher_id = p.id)"
+		 "    and (p.primary_channel_id = c.id)"
+		 "    and (c.geography_id = g.id)"
+		 "    and (i.offer_id = o.id)"
+		 "    and (i.transaction_id = t.id)"
+		 "    and (t.status in ('completed','pending'))"
+		 "    and ad.name ilike %s"
+		 "  group by o.end_date, ad.name, o.headline, city"
+		 "  order by end_date desc;" )
+
+@app.route("/merchant")
+@app.route("/merchant/")
+def merchant_report( name = None ):
+    name = None
+    if 'name' in request.values:
+    	name = request.values['name']
+
+    context = {}
+    context["is_good"] = name and (len(name) > 3)
+    context["query"] = name
+    if context["is_good"]:
+        context["rows"] = execute_sql( merchant_sql, ('%'+name+'%',) )
+
+    return render_template( 'merchant.html', **context )
+
 
 
 @app.route("/pubreps/<id>/dealcats")
