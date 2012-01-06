@@ -5,7 +5,7 @@ from flaskext.openid import OpenID, COMMON_PROVIDERS
 import datetime
 import os
 import sys
-import HTMLParser
+import hashlib
 
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
@@ -248,7 +248,7 @@ def referrals_for_account2(id=''):
 
 
 
-merchant_sql = ( "select o.end_date, ad.name, o.headline, g.title city, count(i.id), sum(i.amount)"
+merchant_sql = ( "select o.id offerid, p.primary_channel_id channelid, o.end_date, ad.name, o.headline, g.title city, count(i.id), sum(i.amount)"
   		 "   from core_advertiser ad, core_offer o, core_publisher p, core_channel c, core_geography g, core_item i, core_transaction t"
 		 "  where (o.advertiser_id = ad.id)"
 		 "    and (o.publisher_id = p.id)"
@@ -257,8 +257,8 @@ merchant_sql = ( "select o.end_date, ad.name, o.headline, g.title city, count(i.
 		 "    and (i.offer_id = o.id)"
 		 "    and (i.transaction_id = t.id)"
 		 "    and (t.status in ('completed','pending'))"
-		 "    and ad.name ilike %s"
-		 "  group by o.end_date, ad.name, o.headline, city"
+		 "    and ((ad.name ilike %s) or (o.headline ilike %s))"
+		 "  group by o.id, p.primary_channel_id, o.end_date, ad.name, o.headline, city"
 		 "  order by end_date desc;" )
 
 @app.route("/merchant")
@@ -272,7 +272,7 @@ def merchant_report( name = None ):
     context["is_good"] = name and (len(name) > 3)
     context["query"] = name
     if context["is_good"]:
-        context["rows"] = execute_sql( merchant_sql, ('%'+name+'%',) )
+        context["rows"] = execute_sql( merchant_sql, ('%'+name+'%','%'+name+'%',) )
 
     return render_template( 'merchant.html', **context )
 
@@ -352,6 +352,13 @@ def listpubs():
     SUBTITLE='';
     return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
+
+def md5( s ):
+    m = hashlib.md5()
+    m.update( s )
+    return m.hexdigest()
+
+jinja2.filters.FILTERS["md5"] = md5
 
 
 if __name__ == "__main__":
