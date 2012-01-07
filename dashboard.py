@@ -6,6 +6,8 @@ import datetime
 import os
 import sys
 import hashlib
+from pymongo import Connection
+import math
 
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
@@ -351,6 +353,43 @@ def listpubs():
     TITLE='ACTIVE PUBLISHERS LIST';
     SUBTITLE='';
     return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
+
+@app.route("/cctrans")
+def cctrans():
+    conn = Connection("dw.tippr.com")
+    coll = conn.warehouse.events
+
+    query = { 'event' : { '$regex' : '^payments.authorization.' } ,
+              'grid' : 'production',
+              'timestamp' : { "$gte" : (datetime.datetime.now()-datetime.timedelta(days=14)).isoformat() } }
+
+    cursor = coll.find(query, {'timestamp':1, 'event':1})
+
+    perday = [None] * 14
+    perhour = [None] * 24
+    now = datetime.datetime.now()
+
+    for r in cursor:
+        eventdate = datetime.datetime.strptime( r["timestamp"].split(".")[0], "%Y-%m-%dT%H:%M:%S" )
+        hoursago = int(math.floor( (now-eventdate).total_seconds()/3600 ))
+        daysago = int(math.floor( ( now-eventdate).total_seconds()/(3600*24)) )
+        eventtype = r['event'].split('.')[2]
+
+        if not perday[daysago]:
+            perday[daysago] = {}
+        perday[daysago][eventtype] = perday[daysago].get(eventtype,0)+1
+        
+        if hoursago < 24:
+            if not perhour[hoursago]:
+                perhour[hoursago] = {}
+
+            perhour[hoursago][eventtype] = perhour[hoursago].get(eventtype,0)+1
+ 
+    context = {}
+    context["daysago"] = perday 
+    context["hoursago"] = perhour
+
+    return render_template( 'cctrans.html', **context )
 
 
 def md5( s ):

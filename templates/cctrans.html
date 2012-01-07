@@ -1,0 +1,68 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>
+      Google Visualization API Sample
+    </title>
+    <script type="text/javascript" src="http://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load('visualization', '1', {packages: ['corechart']});
+    </script>
+    <script type="text/javascript">
+      function drawVisualization() {
+	var data = new google.visualization.DataTable();
+	data.addColumn( 'string', 'Hours ago' );
+	data.addColumn( 'number', 'Throttled' );
+	data.addColumn( 'number', 'Failure' );
+	data.addColumn( 'number', 'Success' );
+
+	{% for r in hoursago|reverse %}
+        data.addRow( [ '{{23-loop.index0}}', {{ r.throttled | default(0) }}, {{r.failure | default(0)}}, {{r.success| default(0)}} ] );
+        {% endfor %}
+
+        var ac = new google.visualization.AreaChart(document.getElementById('visualization'));
+        ac.draw(data, {
+          title : 'Hourly CC Validation attempts for the last day',
+          isStacked: true,
+          width: 1000,
+          height: 400,
+          vAxis: {title: "# attempts"},
+          hAxis: {title: "Hours Ago"}
+        });
+
+
+
+
+	var data2 = new google.visualization.DataTable();
+	data2.addColumn( 'string', 'Days ago' );
+	data2.addColumn( 'number', 'Throttled' );
+	data2.addColumn( 'number', 'Failure' );
+	data2.addColumn( 'number', 'Success' );
+
+	{% for r in daysago|reverse %}
+        data2.addRow( [ '{{13-loop.index0}}', {{ r.throttled | default(0) }}, {{r.failure | default(0)}}, {{r.success| default(0)}} ] );
+        {% endfor %}
+
+        var ac2 = new google.visualization.AreaChart(document.getElementById('visualization2'));
+        ac2.draw(data2, {
+          title : 'Daily CC Validation attempts for the last 14 days',
+          isStacked: true,
+          width: 1000,
+          height: 400,
+          vAxis: {title: "# attempts"},
+          hAxis: {title: "Days Ago"}
+        });
+
+
+
+      }
+
+      google.setOnLoadCallback(drawVisualization);
+    </script>
+  </head>
+  <body style="font-family: Arial;border: 0 none;">
+    <div id="visualization" style="width: 1000px; height: 400px;"></div>
+    <div id="visualization2" style="width: 1000px; height: 400px;"></div>
+  </body>
+</html>
