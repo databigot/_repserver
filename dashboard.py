@@ -354,6 +354,8 @@ def listpubs():
     SUBTITLE='';
     return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
+
+
 @app.route("/cctrans")
 def cctrans():
     conn = Connection("dw.tippr.com")
@@ -363,31 +365,44 @@ def cctrans():
               'grid' : 'production',
               'timestamp' : { "$gte" : (datetime.datetime.now()-datetime.timedelta(days=14)).isoformat() } }
 
-    cursor = coll.find(query, {'timestamp':1, 'event':1})
+    cursor = coll.find(query, {'timestamp':1, 'event':1, 'user_ip':1})
 
     perday = [None] * 14
     perhour = [None] * 24
+    perip = {}
     now = datetime.datetime.now()
 
+    perday = [ { "label" : "in the last day" if i == 0 else "%d to %d days ago" % (i, i+1) } for i in range(14) ]
+    perhour = [ { "label" : "in the last hour" if i == 0 else "%d to %d hours ago" % (i, i+1) } for i in range(24) ]
+
     for r in cursor:
+        ip = r.get("user_ip", None)
         eventdate = datetime.datetime.strptime( r["timestamp"].split(".")[0], "%Y-%m-%dT%H:%M:%S" )
         hoursago = int(math.floor( (now-eventdate).total_seconds()/3600 ))
         daysago = int(math.floor( ( now-eventdate).total_seconds()/(3600*24)) )
         eventtype = r['event'].split('.')[2]
 
-        if not perday[daysago]:
-            perday[daysago] = {}
         perday[daysago][eventtype] = perday[daysago].get(eventtype,0)+1
         
         if hoursago < 24:
-            if not perhour[hoursago]:
-                perhour[hoursago] = {}
-
             perhour[hoursago][eventtype] = perhour[hoursago].get(eventtype,0)+1
- 
+            if ip:
+		if not ip in perip:
+                    perip[ip] = {'total':0}
+	    	perip[ip][eventtype] = perip[ip].get(eventtype,0)+1
+                perip[ip]["total"] = perip[ip].get("total",0)+1
+
+    suspicious = []
+    for k,v in perip.items():
+	if (v.get("success",0) > 1) or (v.get("failed",0) > 2) or (v.get("throttled",0) > 0):
+            v["ip"] = k
+            suspicious.append(v)
+
+
     context = {}
     context["daysago"] = perday 
     context["hoursago"] = perhour
+    context["perip"] = suspicious
 
     return render_template( 'cctrans.html', **context )
 
