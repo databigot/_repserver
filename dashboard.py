@@ -6,7 +6,7 @@ import datetime
 import os
 import sys
 import hashlib
-from pymongo import Connection
+from pymongo import Connection, ReadPreference
 import math
 
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
@@ -358,7 +358,7 @@ def listpubs():
 
 @app.route("/cctrans")
 def cctrans():
-    conn = Connection("dw.tippr.com")
+    conn = Connection("dw.tippr.com", read_preference=ReadPreference.SECONDARY_ONLY)
     coll = conn.warehouse.events
 
     query = { 'event' : { '$regex' : '^payments.authorization.' } ,
