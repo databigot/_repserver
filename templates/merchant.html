@@ -1,0 +1,85 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>
+      Offers by Merchant
+    </title>
+    <style type="text/css">
+    body, html {
+        font-family: arial;
+        font-size: 10pt;
+    }
+
+    h1 {
+	font-family: arial;
+        font-size:24pt;
+        margin-bottom:0pt;
+    }
+
+    h2 {
+       font-family: arial;
+       font-size: 16pt;
+       margin-top:8pt;
+       margin-bottom:10pt;
+    }
+    </style>
+
+    <script type="text/javascript" src="http://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load('visualization', '1', {packages: ['table']});
+    </script>
+    <script type="text/javascript">
+      var visualization;
+      var dataTable = new google.visualization.DataTable();
+
+      // define columns
+      dataTable.addColumn( { type: 'date',   label: 'End Date', 'pattern': 'mm-dd-yyyy' } );
+      dataTable.addColumn( { type: 'string', label: 'Merchant' } );
+      dataTable.addColumn( { type: 'string', label: 'Headline' } );
+      dataTable.addColumn( { type: 'string', label: 'City' } );
+      dataTable.addColumn( { type: 'number', label: '# Sold' } );
+      dataTable.addColumn( { type: 'number', label: 'Gross', pattern: '#,##0.00' } );
+
+      // add rows
+      {% for r in rows %}
+      dataTable.addRow( [ new Date("{{ r.end_date.strftime( '%m/%d/%y' ) }}"), "{{ r.name | safe }}", {v:"{{ r.headline | safe }}", f:"{{ r.headline | safe }}"}, "{{ r.city }}", {{ r.count }}, {{ r.sum }} ] );
+      {% endfor %}
+
+      // draw the actual table
+      function drawVisualization() {
+        var table = new google.visualization.Table( document.getElementById('data') );
+        table.draw(dataTable, { allowHtml: true });
+      }
+
+      // on startup, tell it to draw the table
+      google.setOnLoadCallback(drawVisualization);
+    </script>
+  </head>
+
+  <body>
+    <center>
+	<h1>Offers for Merchant</h1>
+	{% if query %}
+        {% if is_good %}
+            <h2>Merchant like '{{ query }}'</h2>
+        {% else %}
+            <h2>Unable to run report, '{{ query }}' isn't enough to go on.</h2>
+        {% endif %}
+        {% endif %}
+    </center>
+
+       <form method='GET' action='/merchant'> <!--- target is me -->
+            <p><label id='search_label' for='search_input'><span>Search for Merchant: </span></label>
+            <input id='search_input' name='name' value='{% if query %}{{ query|default("") }}{% endif %}'>
+            <button type='submit'>Search</button></p> 
+        </form>
+    <br />
+    {% if is_good %}
+	<div id="data"></div>
+        <br />
+        {{ rows | length }} rows returned.
+    {% endif %}
+
+  </body>
+</html>

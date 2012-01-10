@@ -1,13 +1,22 @@
 import psycopg2
 from flask import Flask, url_for, render_template, g, session, request, redirect, abort
+import jinja2
 from flaskext.openid import OpenID, COMMON_PROVIDERS
 import datetime
 import os
 import sys
+
 import csv
 
 from sqlhelpers import *
 from settings import *
+
+import hashlib
+from pymongo import Connection, ReadPreference
+import math
+
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
 app = Flask(__name__)
 oid = OpenID(app, '/tmp/'+str(UID))
@@ -122,6 +131,52 @@ def dashboard():
     stillrunning = get_offers( inprocess_sql )
     return render_template("dashboard.html",failed=filter( lambda x: x["failed%"] > 25, recentbad ), current=stillrunning)
 
+##TODO:move to sqlhelpers.py
+def execute_sql( sql, params ):
+    try:
+        conn = psycopg2.connect("dbname='silos' user='django' host='127.0.0.1'")
+        curr = conn.cursor()
+        curr.execute( sql, params )
+        results = curr.fetchall()
+        cols = [x.name for x in curr.description]
+
+	rows = [ dict( zip( cols, r ) ) for r in results ]
+        return rows
+    except Exception as e:
+	raise e
+        print "exception executing sql", e
+        return None
+
+##TODO:break this out to reports.py?
+merchant_sql = ( "select o.id offerid, p.primary_channel_id channelid, o.end_date, ad.name, o.headline, g.title city, count(i.id), sum(i.amount)"
+  		 "   from core_advertiser ad, core_offer o, core_publisher p, core_channel c, core_geography g, core_item i, core_transaction t"
+		 "  where (o.advertiser_id = ad.id)"
+		 "    and (o.publisher_id = p.id)"
+		 "    and (p.primary_channel_id = c.id)"
+		 "    and (c.geography_id = g.id)"
+		 "    and (i.offer_id = o.id)"
+		 "    and (i.transaction_id = t.id)"
+		 "    and (t.status in ('completed','pending'))"
+		 "    and ((ad.name ilike %s) or (o.headline ilike %s))"
+		 "  group by o.id, p.primary_channel_id, o.end_date, ad.name, o.headline, city"
+		 "  order by end_date desc;" )
+
+@app.route("/merchant")
+@app.route("/merchant/")
+def merchant_report( name = None ):
+    name = None
+    if 'name' in request.values:
+    	name = request.values['name']
+
+    context = {}
+    context["is_good"] = name and (len(name) > 3)
+    context["query"] = name
+    if context["is_good"]:
+        context["rows"] = execute_sql( merchant_sql, ('%'+name+'%','%'+name+'%',) )
+
+    return render_template( 'merchant.html', **context )
+
+
 @app.route("/pubreps/")
 def listpubs():
     sql = """
@@ -149,7 +204,6 @@ def listpubs():
 from reports import referrals
 referrals = app.route("/referrals/<id>")(referrals)
 referrals = app.route("/referrals/", methods=['POST'])(referrals)
-
 
 from reports import dealcats
 dealcats = app.route("/pubreps/dealcats/<id>")(dealcats)
@@ -202,6 +256,65 @@ def index():
 		,{'name':'Sales Report by Agent','url': url_for('agent_sales')}
 		] 
 	return render_template("index.html", REPORTS=reports);
+
+
+@app.route("/cctrans")
+def cctrans():
+    conn = Connection("mongodb://warehouse-ro:fr33$tuff@dw.tippr.com/warehouse", read_preference=ReadPreference.SECONDARY_ONLY)
+    coll = conn.warehouse.events
+
+    query = { 'event' : { '$regex' : '^payments.authorization.' } ,
+              'grid' : 'production',
+              'timestamp' : { "$gte" : (datetime.datetime.now()-datetime.timedelta(days=14)).isoformat() } }
+
+    cursor = coll.find(query, {'timestamp':1, 'event':1, 'user_ip':1})
+
+    perday = [None] * 14
+    perhour = [None] * 24
+    perip = {}
+    now = datetime.datetime.now()
+
+    perday = [ { "label" : "in the last day" if i == 0 else "%d to %d days ago" % (i, i+1) } for i in range(14) ]
+    perhour = [ { "label" : "in the last hour" if i == 0 else "%d to %d hours ago" % (i, i+1) } for i in range(24) ]
+
+    for r in cursor:
+        ip = r.get("user_ip", None)
+        eventdate = datetime.datetime.strptime( r["timestamp"].split(".")[0], "%Y-%m-%dT%H:%M:%S" )
+        hoursago = int(math.floor( (now-eventdate).total_seconds()/3600 ))
+        daysago = int(math.floor( ( now-eventdate).total_seconds()/(3600*24)) )
+        eventtype = r['event'].split('.')[2]
+
+        perday[daysago][eventtype] = perday[daysago].get(eventtype,0)+1
+        
+        if hoursago < 24:
+            perhour[hoursago][eventtype] = perhour[hoursago].get(eventtype,0)+1
+            if ip:
+		if not ip in perip:
+                    perip[ip] = {'total':0}
+	    	perip[ip][eventtype] = perip[ip].get(eventtype,0)+1
+                perip[ip]["total"] = perip[ip].get("total",0)+1
+
+    suspicious = []
+    for k,v in perip.items():
+	if (v.get("success",0) > 1) or (v.get("failed",0) > 2) or (v.get("throttled",0) > 0):
+            v["ip"] = k
+            suspicious.append(v)
+
+
+    context = {}
+    context["daysago"] = perday 
+    context["hoursago"] = perhour
+    context["perip"] = suspicious
+
+    return render_template( 'cctrans.html', **context )
+
+
+def md5( s ):
+    m = hashlib.md5()
+    m.update( s )
+    return m.hexdigest()
+
+jinja2.filters.FILTERS["md5"] = md5
 
 
 if __name__ == "__main__":
