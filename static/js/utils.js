@@ -63,16 +63,36 @@ formatters = {
 			return output;
 		},
         currency: function(value) {
-            value = parseFloat(value).toFixed(2);
-            return '<span class="number currency">$' + value + '</span>';
+//experimental currency formatting function by JE:
+//does not handle #>999M, probably doesn't handle negatives
+//could be extended to truncate at the right level for the report (in thousands),
+// or to go human-readable: 99M, 1K
+//NOTWORKING:
+	    _points = 0; //#of decimal points, ARE WE ROUNDING?
+//
+	    _base = 1; //if showing in thousands, set to 1000, in millions, set to 1000000
+	    _units = ''; //if showing in thousands, set to 'K', millions: 'm'	
+	    value /= _base;
+//	    s = parseFloat(value % 1000).toFixed(_points);
+//	    s += _units;
+	    s = parseInt(value % 1000);
+	    if (k = Math.floor(value / 1000)) {
+		s = parseInt(k % 1000)+','+('00'+s).substr(-3);
+		if (m = Math.floor(value/1000000)) 
+		    s = parseInt(m)+','+('00'+s).substr(-3);
+		}
+//	    s += (value % 1).toFixed(_points).substr(-_points)+_units;
+           // value = parseFloat(value).toFixed(2);
+            return '<span class="number currency">$ ' + s + '</span>';
         },
         currency_negative: function(value) {
             value = parseFloat(value).toFixed(2);
-            return '<span class="number currency-negative">$' + value + '</span>';
+            return '<span class="number currency-negative">$ ' + value + '</span>';
         },
         currency_long: function(value) {
+		
             value = parseFloat(value).toFixed(4);
-            return '<span class="number currency">$' + value + '</span>';
+            return '<span class="number currency">$ ' + value + '</span>';
         },
         integer: function(value) {
             return '<span class="number">' + parseFloat(value).toFixed(0) + '</span>';
@@ -91,10 +111,10 @@ formatters = {
         nonblank: function(value) {
             return (value.length > 0) ? value : '-';
         },
-        percentage: function(value) {
+        percent: function(value) {
             return '<span class="number">' + Math.floor(parseFloat(value) * 100) + '%' + '</span>';
         },
-        percentage_decimal: function(value) {
+        percent_decimal: function(value) {
             return '<span class="number">' + (100*parseFloat(value)).toFixed(2) + '%' + '</span>';
         },
         progress: function(value) {

@@ -24,7 +24,8 @@
             {% elif col.u == 'percentage' %},	 	classes: 'col-align-right', formatter: formatters.percentage
             {% elif col.u == 'currency' %}, 		classes: 'col-align-right',formatter: formatters.currency
             {% elif col.u == 'currency-negative' %}, classes: 'col-align-right', formatter: formatters.currency_negative
-            {% elif col.u == 'percentage-decimal' %}, classes: 'col-align-right', formatter: formatters.percentage_decimal
+            {% elif col.u == 'percent-decimal' %}, classes: 'col-align-right', formatter: formatters.percent_decimal
+            {% elif col.u == 'percent' %}, classes: 'col-align-right', formatter: formatters.percent
             {% elif col.u == 'currency-long' %}, classes: 'col-align-right', formatter: formatters.currency_long
 			{% elif col.u == 'linkto' %}, formatter: formatters.jelinkto
             {% endif %}
@@ -33,7 +34,17 @@
         ]]
     }, dojo.byId('report-grid'));
 	report.startup();
-});
+   });
+ $(function() {
+	$('#download-csv-link').click(function(event) {
+		
+		if (window.location.search)
+			window.location = window.location + '&format=csv';
+		else
+			window.location = window.location + '?format=csv';
+		return false;});
+	});
+
 </script>
 
 {% if ROWS %}
@@ -69,8 +80,8 @@
 	<script type="text/javascript" src="[[ resource('js/dojo.js') ]]"></script>
 	--->
     <script src="http://ajax.googleapis.com/ajax/libs/dojo/1.7.1/dojo/dojo.js" type="text/javascript"></script>
-	<script src="/static/js/utils.js"></script>
-
+    <script src="/static/js/utils.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.js"> </script>
 
 
 
@@ -114,6 +125,7 @@
 body {
 	font-family: arial;
 	font-size:8pt;
+	margin: 30px;
 }
 th {
 /*    font-style: italic;
@@ -134,11 +146,31 @@ tr {
 
 <div class='report-title'>{{ TITLE }}</div><br />
 {% if SUBTITLE %}<div class='report-subtitle'>{{ SUBTITLE }}</div><br />{% endif %}
-<div class='report-date'>{{ now }}</div><br />
-{% if BACK %}<div><a href='{{ BACK }}'>Back</a></div><br />{% endif %}
-{% if SEARCH %}
-{{ SEARCH | safe}}
+
+<div class='report-date'>{{ now }}<br/> {{ g.user }}</div><br />
+{% if BACK %}<div><a href='{{ BACK }}'>Go Back</a></div><br />{% endif %}
+
+{% if SELECTOR %}
+{% for key,value in SELECTOR.list %}
+	{% if key==SELECTOR.current %}
+		<div class='report-subtitle'>(for {{ value }})</div><br />
+	{% endif %}
+{% endfor %}
+<!-- form method='POST' id='form' action='{{ SELECTOR.submit_url }}'> <!--- target is me -->
+
+   <p><label id='search_label' for='search_input'><span>{{ SELECTOR.name }}: </span></label>
+   <select id='search_input' name='id' onChange='javascript: window.location="{{ SELECTOR.submit_url }}"+""+$("#search_input").val();'>
+   {% for key,value in SELECTOR.list %}
+         <option value='{{ key }}' {% if key==SELECTOR.current %} selected {% endif %} > 
+            {{ value }}</option> 
+   {% endfor %}                    
+   </select>               
+   <!--button type='submit'>Change {{ SELECTOR.name }}</button></p> 
+</form-->
 {% endif %}
+
+<br />
+<a href id='download-csv-link'>Download as CSV</a>
 
 {{ render_me( COLS,ROWS) }}
 <br />

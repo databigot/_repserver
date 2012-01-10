@@ -1,0 +1,19 @@
+
+<html>
+<head>
+<title>Report, yo!</title>
+<style type="text/css">
+body {
+	font-family: arial;
+	font-size:8pt;
+}
+</style>
+</head>
+<body>
+{% for x in REPORTS %}
+	<h2><a href='{{ x.url }}'>{{ x.name }}</a></h2><br />
+{% endfor %}
+<br />
+
+</body>
+</html>
