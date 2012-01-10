@@ -358,7 +358,7 @@ def listpubs():
 
 @app.route("/cctrans")
 def cctrans():
-    conn = Connection("dw.tippr.com", read_preference=ReadPreference.SECONDARY_ONLY)
+    conn = Connection("mongodb://warehouse-ro:fr33$tuff@dw.tippr.com/warehouse", read_preference=ReadPreference.SECONDARY_ONLY)
     coll = conn.warehouse.events
 
     query = { 'event' : { '$regex' : '^payments.authorization.' } ,
