@@ -77,6 +77,7 @@ def dealcats(id='test'):
 #    pub_name = hash_publishers[id]
     sql = """
         select channel.name, advertiser.category_id, count(distinct(offer.id)) "offer count", 
+		array_agg(distinct(offer.id)) "offers_list", 
                  sum(item.amount)::float "gross revenue", 
                 round(sum(item.amount)/count(distinct(offer.id)))::float "gross revenue/offer" 
             from core_transaction transaction, core_channel channel, core_offer offer, core_item item,
@@ -91,9 +92,15 @@ def dealcats(id='test'):
     """
     cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
+    for row in ROWS:
+	params = []
+	params.append("filter_pretty="+"for channel %s, category %s" % (row['name'],row['category_id']))
+	for x in row['offers_list']: 
+		params.append('offer='+ x) 
+	row['link'] = {'linkto':url_for('offers_detail'), 'params': params, 'show':row['name']} #set up link to orders detail
     COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
 #TODO: add in tool-tip, and link-logic.
-        {'k':'name'        		,'l': 'Channel '    ,'u': None            ,'w': '200px'}   #linkto: 
+        {'k':'link'        		,'l': 'Channel '    ,'u': 'linkto'            ,'w': '200px'}   #linkto: 
         ,{'k':'category_id'             ,'l': 'Category'    ,'u': None            ,'w': '130px'}
         ,{'k':'offer count'        	,'l': '# offers'        ,'u': 'integer'        ,'w': '120px'}
         ,{'k':'gross revenue'        	,'l': 'ttl gross $ revenue'    ,'u': 'currency'    ,'w': '130px'}
@@ -159,9 +166,11 @@ def agent_sales(yyyymm = None):
 		,'submit_url': '/agent_sales/'
 		,'name':	'Month'
 	}
+#TODO fix to use array_agg(offer.id)!!
 	sql = """
-	select /*date(date_trunc('month',offer.start_date)) "Deal Start Month",*/ account.fullname "Agent", 
+	select 		/*date(date_trunc('month',offer.start_date)) "Deal Start Month",*/ account.fullname "Agent", 
 			case when offer.upstream_source = 'tom' THEN 'TOM' else 'PBT' end "source", 
+			array_agg(distinct(offer.id)) "offers_list", 
 			count(distinct(offer.id)) "Offers", count(distinct(item.id)) "vouchers", 
 			round(avg(offer.processing_fee_percentage * 100),1)/100::float "Avg CC", sum(item.amount)::float "Item.Gross", 
 			sum(product.payout)::float "Merchant Payout", sum(product.marketplace_cost)::float "TOM Payout",
@@ -170,23 +179,29 @@ def agent_sales(yyyymm = None):
 				(sum(product.price) - sum(product.marketplace_cost))::float 
 				else (sum(product.price) - sum(product.payout))::float end "Net", 
 			coalesce(sum(returns.amount),0.00)::float "Returns/Voids", 
-			round((coalesce(sum(returns.amount),0.00)/sum(item.amount)) * 100,1)/100::float "Returns %" 
+			round((coalesce(sum(returns.amount),0.00)/sum(item.amount)) * 100,1)/100::float "returns" 
 		from core_offer offer, core_publisher publisher, core_account account, core_agent agent, 
 			core_transaction transaction, core_item item, core_product product, core_voucher voucher 
 			left join core_item returns on (returns.id = voucher.item_ptr_id and 
 				(voucher.status = 'voided' or voucher.status = 'invalidated')) 
 		where voucher.product_id = product.id and transaction.id = item.transaction_id and offer.agent_id = agent.id
 			and agent.account_id = account.id and publisher.id = offer.publisher_id and item.offer_id = offer.id
-			and item.id = voucher.item_ptr_id and date(date_trunc('month',offer.start_date)) = '2011-11-01' 
+			and item.id = voucher.item_ptr_id and date(date_trunc('month',offer.start_date)) = '%(month)s' 
 			and offer.status = 'closed' 
 		group by 1,2,offer.upstream_source 
 		order by 1,2 desc;
 	"""
-	cols, resultset = throw_sql(sql) # % {'month':yyyymm+'-01'})
+	cols, resultset = throw_sql(sql  % {'month':yyyymm+'-01'})
 	ROWS = [dict(zip(cols,row)) for row in resultset]
+	for row in ROWS:
+		params = []
+		params.append("filter_pretty="+"for %s in %s" % (row['Agent'], yyyymm+'-01'))
+		for x in row['offers_list']: 
+			params.append('offer='+ x) 
+		row['link'] = {'linkto':url_for('offers_detail'), 'params': params, 'show':row['Agent']} #set up link to orders detail
 	COLS = [#k:field_name		l:title(\n)			u:formatting		w:width
 	#	{'k':'Deal Start Month'	,'l':'Deal Start Month'		,'u': None		,'w': ''}
-		{'k':'Agent'		,'l':'Agent'			,'u': None		,'w': '100px'}
+		{'k':'link'		,'l':'Agent'			,'u': 'linkto'		,'w': '100px'}
 		,{'k':'source'		,'l':'source'			,'u': None		,'w': '80px'}
 		,{'k':'Offers'		,'l':'Offers'			,'u': 'integer'		,'w': '50px'}
 		,{'k':'vouchers'	,'l':'vouchers'			,'u': 'integer'		,'w': '60px'}
@@ -196,8 +211,8 @@ def agent_sales(yyyymm = None):
 		,{'k':'TOM Payout'	,'l':'TOM Payout'		,'u': 'currency'	,'w': '90px'}
 		,{'k':'CC fees'		,'l':'CC fees'			,'u': 'currency'	,'w': '80px'}
 		,{'k':'Net'		,'l':'Net'			,'u': 'currency'	,'w': '90px'}
-		,{'k':'Returns/Voids'	,'l':'Returns & Voids'		,'u': 'integer'		,'w': '60px'}
-		,{'k':'Returns %'	,'l':'Returns %'		,'u': 'percent'		,'w': '40px'}
+		,{'k':'Returns/Voids'	,'l':'Returns & Voids'		,'u': 'currency'	,'w': '60px'}
+		,{'k':'returns'		,'l':'Returns %'		,'u': 'percent'		,'w': '40px'}
 	]	
 	TITLE='FANFORCE AGENT SALES REPORT'; #SUBTITLE='(for %s)'%pick_month[yyyymm]
 
@@ -207,6 +222,48 @@ def agent_sales(yyyymm = None):
     	else: #assume format == 'grid':
 		return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, #SUBTITLE=SUBTITLE, 
 			SELECTOR=SELECTOR);
+
+def offers_detail(offers=None):
+	"""
+		Show detailed closed orders.
+		List passed in
+	"""
+	offers = request.values.getlist('offer',None)
+	offers = offers or ['abb65856923e4e389ae6a09709e70600','7b7c54d1a9854f8788db45df42b7d87b', '8d10df493ad74e86a70e9a4527913739','7ee676edc5564d5f9d0cdfa7d5d620fe']
+	SUBTITLE = request.values.get('filter_pretty',None)
+	TITLE ='DETAIL CLOSED OFFER REPORT';
+	sql = """
+		select ag_acc.fullname agent, ad.name merchant, p.name publisher, o.start_date::varchar start_date, o.end_date::varchar end_date
+				, ad.category_id category, o.headline
+                                , count(i.id) qty, sum(i.amount)::float gross
+                        from core_offer o, core_publisher p, core_advertiser ad, core_agent ag, core_account ag_acc
+                                ,core_item i
+                        where o.advertiser_id = ad.id and o.publisher_id = p.id
+                                and o.agent_id = ag.id and ag.account_id = ag_acc.id
+                                and o.status = 'closed'
+                                and o.id= i.offer_id and exists (
+                                        select * from core_transaction
+                                                where id = i.transaction_id and status in ('completed', 'pending'))
+				and o.id = any ('{ %(offer_list)s }')
+			group by 1,2,3,4,5,6,7;
+	"""
+	#expects order_list to be string,string,string -- not quoted.
+	#todo: add the numerics: voucher#, net, gross, etc.
+	sql = sql % {'offer_list':','.join(offers)}
+	cols, resultset = throw_sql(sql)
+	ROWS = [dict(zip(cols,row)) for row in resultset]
+        COLS = [#k:field_name           l:title(\n)                     u:formatting            w:width
+               {'k':'agent' 	,'l':'agent'         ,'u': None              ,'w': '70px'}
+               ,{'k':'merchant' 	,'l':'merchant'      ,'u': None              ,'w': '140px'}
+               ,{'k':'publisher' ,'l':'publisher'     ,'u': None              ,'w': '60px'}
+               ,{'k':'start_date' ,'l':'start_date'   ,'u': 'date'              ,'w': '80px'}
+               ,{'k':'end_date' 	,'l':'end_date'      ,'u': 'date'              ,'w': '80px'}
+               ,{'k':'category' 	,'l':'category'      ,'u': None              ,'w': '140px'}
+               ,{'k':'headline' 	,'l':'headline'      ,'u': None              ,'w': '170px'}
+               ,{'k':'qty' 	,'l':'qty'           ,'u': 'integer'              ,'w': '50px'}
+               ,{'k':'gross' 	,'l':'gross'         ,'u': 'currency'              ,'w': '60px'}
+	]
+	return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
 
 def engagement(id = 'test'):

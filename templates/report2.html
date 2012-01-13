@@ -12,7 +12,7 @@
         store: new dojo.data.ItemFileReadStore({
             data: {items: [
             {% for row in ROWS %}
-                {{ row|tojson|safe}}{% if not loop.last %},{% endif %}
+                {{ row | tojson | safe }}{% if not loop.last %},{% endif %}
             {% endfor %}
             ]},
             hierarchical: false

@@ -1,6 +1,11 @@
 formatters = {
 		jelinkto: function(value) {
-			return '<a class="grid-link" href="' + value.linkto + '"> ' + value.show + ' </a>';
+			url = value.linkto;
+			if (value.params) {
+				url = url + '?'+ value.params.join('&');
+				}
+			url = encodeURI(url);
+			return '<a class="grid-link" href="' + url + '"> ' + value.show + ' </a>';
 		},
         actions: function(value) {
             var content = '', pair;

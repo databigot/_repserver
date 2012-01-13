@@ -209,6 +209,9 @@ from reports import dealcats
 dealcats = app.route("/pubreps/dealcats/<id>")(dealcats)
 dealcats = app.route("/pubreps/dealcats", methods=['GET','POST'])(dealcats)
 
+from reports import offers_detail
+offers_detail = app.route("/offers_detail")(offers_detail)
+
 def who_in(*groupnames):
    members = []
    for group in groupnames:
