@@ -83,12 +83,13 @@ def create_or_login(resp):
 @app.route("/")
 def index():
 	reports = [
-		{'name': "Offers Dashboard"			,'url': url_for('offers')}
-		,{'name':"Publishers Reports"			,'url': url_for('listpubs')}
-		,{'name':'Referrals Report'			,'url': url_for('referrals')}
+		 {'name': "Purchases Report"			,'url': url_for('purchasereport')}
+		,{'name': "Offers Dashboard"			,'url': url_for('offers')}
+		,{'name': "Publishers Reports"			,'url': url_for('listpubs')}
+		,{'name': 'Referrals Report'			,'url': url_for('referrals')}
 		,{'name': 'Deal Category Report'		,'url': url_for('dealcats')}
 		,{'name': 'Customer Engagement Dashboard'	,'url': url_for('engagement')}
-		,{'name':'Sales Report by Agent','url': url_for('agent_sales')}
+		,{'name': 'Sales Report by Agent','url': url_for('agent_sales')}
 		] 
 	return render_template("index.html", REPORTS=reports);
 
