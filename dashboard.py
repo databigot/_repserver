@@ -169,7 +169,7 @@ purchase_sql = ( "select o.id "
                  "  from core_offer o, core_item i, core_transaction t"
                  " where (i.offer_id = o.id)"
                  "   and (i.transaction_id = t.id)"
-                 "   and (t.status in ('succeeded','pending'))"
+                 "   and (t.status in ('completed','pending'))"
                  "   and (t.occurrence > current_date-7)"
                  " group by o.id, headline, date(occurrence)"
                  " order by o.id, date" )
