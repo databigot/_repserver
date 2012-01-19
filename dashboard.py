@@ -290,7 +290,12 @@ def listpubs():
 
 from reports import referrals
 referrals = app.route("/referrals/<id>")(referrals)
-referrals = app.route("/referrals/", methods=['POST'])(referrals)
+referrals = app.route("/referrals/", methods=['GET','POST'])(referrals)
+
+
+from reports import referrals_by_date
+referrals_by_date = app.route("/referrals_by_date/<rdate>")(referrals_by_date)
+referrals_by_date = app.route("/referrals/", methods=['POST'])(referrals_by_date)
 
 from reports import dealcats
 dealcats = app.route("/pubreps/dealcats/<id>")(dealcats)

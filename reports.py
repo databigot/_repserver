@@ -5,15 +5,96 @@ from utils import csv_out
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
+def referrals_by_date(rdate='2012-01-17'):
+    if rdate == '':
+        if request.method == 'POST':
+            rdate = request.form['rdate']
+        if rdate == '':
+            raise Exception("empty date passed in")
+    sql = """
+
+        select distinct(referral.transaction_id) "transaction",
+                publisher.name "publisher",
+                referral.source "referrer",
+                referrer.account_id "referrer_id",
+                referred_email.email "referred",
+                referred_email.account_id "referred_id",
+                transaction.status "status",
+                transaction.amount ::float "purchase_amt",
+                referral.campaign "campaign",
+                referral.medium "medium",
+                credits.value ::float "credit_award"
+          from
+                core_transaction transaction, core_referral referral
+                left join core_credit credits on (referral.transaction_id = credits.transaction_id),
+                core_emailaddress referrer, core_emailaddress referred_email, core_publisher publisher
+          where
+                referral.source = referrer.email and
+                referral.account_id = referred_email.account_id and
+                referral.transaction_id = transaction.id and
+                referral.campaign = 'UserReferral' and
+                event='offer-purchase' and
+                date(referral.occurrence) = '%(rdate)s' and
+                transaction.publisher_id = publisher.id and
+                credits.value > 0 order by 2;
+
+    """
+    cols, resultset = throw_sql(sql % {'rdate':rdate}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    for row in ROWS:
+          referrer_params = []
+          referrer_params.append("id=" + row['referrer_id'])
+          row['referrer'] = {'linkto':url_for('referrals'), 'params': referrer_params, 'show':row['referrer']}
+
+          referred_params = []
+          referred_params.append("id=" + row['referred_id'])
+          row['referred'] = {'linkto':url_for('referrals'), 'params':referred_params, 'show':row['referred']}
+
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+#TODO: add in tool-tip, and link-logic.
+        {'k':'transaction'        ,'l': 'Transaction ID'    ,'u': None            ,'w': '200px'}
+        ,{'k':'publisher'            ,'l': 'Publisher'                ,'u': None            ,'w': '130px'}
+        ,{'k':'referrer'        ,'l': 'Referrer'                ,'u': 'linkto'        ,'w': '200px'}
+        ,{'k':'referred'        ,'l': 'Referred'                ,'u': 'linkto'    ,'w': '200px'}
+        ,{'k':'status'    ,'l': 'Trans. Status'        ,'u': None    ,'w': '120px'}
+        ,{'k':'purchase_amt'    ,'l': 'Purchase Amt'   ,'u': 'currency'  ,'w': '120px'}
+        ,{'k':'campaign'        ,'l': 'Campaign'       ,'u': None    ,'w': '150px'}
+        ,{'k':'medium'          ,'l': 'Medium'         ,'u': None    ,'w': '150px'}
+        ,{'k':'credit_award'    ,'l': 'Credit Award $' ,'u': 'currency'  ,'w': '150px'}
+    ]
+#TODO: 'account:'inputbox& select button, currentval='$id', submiturl=url_for('referrals_for_account2')
+
+    searchform = """
+        <form method='POST' action='%s'> <!--- target is me -->
+            <p><label id='search_label' for='search_input'><span>Date: </span></label>
+            <input id='search_input' name='date' value='%s'>
+            <button type='submit'>Search</button></p>
+        </form>
+    """%('/referrals_by_date/',rdate) #note: hardcoded url!
+#(url_for('referrals_for_account2'), id)
+    context = {};
+    TITLE='DAILY TIPPR CREDIT REFERRAL REPORT'; SUBTITLE= ' BY DATE';
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='referrals_by_date-v1');
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+
+
 
 def referrals(id='test'):
-    if id == '':
-        if request.method == 'POST':
+    
+    if request.method == 'POST':
             id = request.form['id']
-        if id == '':
-            raise Exception("empty id") 
+    if request.method == 'GET':
+            id = request.values['id']
+    if id == '':
+            raise Exception("empty id")
     if id == 'test':
-        id = '75514bb16add426bb4b8203c4354d893'    
+        id = '75514bb16add426bb4b8203c4354d893'
+
     sql = """
         select sharer.account_id "referred_acct", 
                 transaction.status "txn_type", 
@@ -30,7 +111,7 @@ def referrals(id='test'):
     ROWS = [dict(zip(cols,row)) for row in resultset]
 
     COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
-#TODO: add in tool-tip, and link-logic.
+    #TODO: add in tool-tip, and link-logic.
         {'k':'referred_acct'        ,'l': 'Referrer Account'    ,'u': None            ,'w': '200px'}
         ,{'k':'txn_type'            ,'l': 'Txn Type'                ,'u': None            ,'w': '130px'}
         ,{'k':'qty_referred'        ,'l': '# Referred'                ,'u': 'integer'        ,'w': '120px'}
@@ -38,7 +119,7 @@ def referrals(id='test'):
         ,{'k':'avg_amt_per_acct'    ,'l': 'Avg $/ Account'        ,'u': 'currency'    ,'w': '120px'}
     ]
 
-#TODO: 'account:'inputbox& select button, currentval='$id', submiturl=url_for('referrals_for_account2')
+    #TODO: 'account:'inputbox& select button, currentval='$id', submiturl=url_for('referrals_for_account2')
 
     searchform = """
         <form method='POST' action='%s'> <!--- target is me -->
@@ -47,7 +128,7 @@ def referrals(id='test'):
             <button type='submit'>Search</button></p> 
         </form>
     """%('/referrals2/',id) #note: hardcoded url!
-#(url_for('referrals_for_account2'), id)
+    #(url_for('referrals_for_account2'), id)
     context = {};
     TITLE='REFERRED TRANSACTION REPORT'; SUBTITLE= ' BY STATUS';
 
