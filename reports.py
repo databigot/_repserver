@@ -5,7 +5,7 @@ from utils import csv_out
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
-def referrals_by_date(rdate='2012-01-17'):
+def credits_by_date(rdate='2012-01-17'):
     if rdate == '':
         if request.method == 'POST':
             rdate = request.form['rdate']
@@ -13,54 +13,63 @@ def referrals_by_date(rdate='2012-01-17'):
             raise Exception("empty date passed in")
     sql = """
 
-        select distinct(referral.transaction_id) "transaction",
-                publisher.name "publisher",
-                referral.source "referrer",
-                referrer.account_id "referrer_id",
-                referred_email.email "referred",
-                referred_email.account_id "referred_id",
-                transaction.status "status",
-                transaction.amount ::float "purchase_amt",
-                referral.campaign "campaign",
-                referral.medium "medium",
-                credits.value ::float "credit_award"
+        select date(credit.activated) ::varchar "credit_activated_date",
+                account.id "credit_owner_id",
+		account.fullname "credit_owner_name",
+		emailaddress.email "credit_owner_email",
+		publisher.name "credit_owner_publisher_name",
+		transaction.id "ref_trans_id",		
+                transaction.status "ref_trans_status",
+                transaction.amount ::float "ref_trans_amt",
+		ref_account.id "ref_trans_account_id",
+		ref_account.fullname "ref_trans_account_name",
+		ref_email.email "ref_trans_account_email",
+                credit.value ::float "credit_amount"
           from
-                core_transaction transaction, core_referral referral
-                left join core_credit credits on (referral.transaction_id = credits.transaction_id),
-                core_emailaddress referrer, core_emailaddress referred_email, core_publisher publisher
+                core_publisher publisher,
+		core_emailaddress emailaddress,
+		core_account account,
+		core_credit credit 
+                left join core_transaction transaction on (credit.transaction_id = transaction.id) 
+		left join core_account ref_account on (transaction.account_id = ref_account.id)
+                left join core_emailaddress ref_email on (ref_account.id = ref_email.account_id)
           where
-                referral.source = referrer.email and
-                referral.account_id = referred_email.account_id and
-                referral.transaction_id = transaction.id and
-                referral.campaign = 'UserReferral' and
-                event='offer-purchase' and
-                date(referral.occurrence) = '%(rdate)s' and
-                transaction.publisher_id = publisher.id and
-                credits.value > 0 order by 2;
+                publisher.id = account.publisher_id and
+		emailaddress.account_id = account.id and
+		account.id = credit.account_id and
+		date(credit.activated) = '%(rdate)s'; 
 
     """
     cols, resultset = throw_sql(sql % {'rdate':rdate}    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     for row in ROWS:
           referrer_params = []
-          referrer_params.append("id=" + row['referrer_id'])
-          row['referrer'] = {'linkto':url_for('referrals'), 'params': referrer_params, 'show':row['referrer']}
-
-          referred_params = []
-          referred_params.append("id=" + row['referred_id'])
-          row['referred'] = {'linkto':url_for('referrals'), 'params':referred_params, 'show':row['referred']}
+          referrer_params.append("id=" + row['credit_owner_id'])
+          row['credit_owner_id'] = {'linkto':url_for('referrals'), 'params': referrer_params, 'show':row['credit_owner_id']}
+	  referred_params = []
+	  if row['ref_trans_account_id'] != None:
+            referred_params.append("id=" + row['ref_trans_account_id'])
+            row['ref_trans_account_id'] = {'linkto':url_for('referrals'), 'params':referred_params, 'show':row['ref_trans_account_id']}
+ 
+	  else:
+	    referred_params.append("id=" + 'none') 
+            row['ref_trans_account_id'] = {'linkto':url_for('referrals'), 'params':referred_params, 'show':'none'}
 
     COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
 #TODO: add in tool-tip, and link-logic.
-        {'k':'transaction'        ,'l': 'Transaction ID'    ,'u': None            ,'w': '200px'}
-        ,{'k':'publisher'            ,'l': 'Publisher'                ,'u': None            ,'w': '130px'}
-        ,{'k':'referrer'        ,'l': 'Referrer'                ,'u': 'linkto'        ,'w': '200px'}
-        ,{'k':'referred'        ,'l': 'Referred'                ,'u': 'linkto'    ,'w': '200px'}
-        ,{'k':'status'    ,'l': 'Trans. Status'        ,'u': None    ,'w': '120px'}
-        ,{'k':'purchase_amt'    ,'l': 'Purchase Amt'   ,'u': 'currency'  ,'w': '120px'}
-        ,{'k':'campaign'        ,'l': 'Campaign'       ,'u': None    ,'w': '150px'}
-        ,{'k':'medium'          ,'l': 'Medium'         ,'u': None    ,'w': '150px'}
-        ,{'k':'credit_award'    ,'l': 'Credit Award $' ,'u': 'currency'  ,'w': '150px'}
+        {'k':'credit_activated_date'        ,'l': 'Credit Activated'    ,'u': 'date'            ,'w': '80px'}
+        ,{'k':'credit_amount',           'l': 'Credit Amount','u':'currency','w':'50px'}
+        ,{'k':'credit_owner_publisher_name'            ,'l': 'Publisher'                ,'u': None            ,'w': '130px'}
+        ,{'k':'credit_owner_id'        ,'l': 'Referrer ID'                ,'u': 'linkto'        ,'w': '150px'}
+        ,{'k':'credit_owner_name'        ,'l': 'Referrer Name'                ,'u': None    ,'w': '140px'}
+        ,{'k':'credit_owner_email'    ,'l': 'Referrer Email'        ,'u': None    ,'w': '150px'}
+        ,{'k':'ref_trans_account_id'    ,'l': 'Referred Account ID' ,'u': 'linkto'  ,'w': '150px'}
+	,{'k':'ref_trans_account_name'  ,'l': 'Referred Account Name','u': None ,'w': '140px'}
+	,{'k':'ref_trans_account_email' ,'l': 'Referred Account Email','u': None,'w': '150px'}
+        ,{'k':'ref_trans_id'    ,'l': 'Referred Trans ID'   ,'u': None  ,'w': '120px'}
+        ,{'k':'ref_trans_status'        ,'l': 'Referred Trans Status'       ,'u': None    ,'w': '100px'}
+        ,{'k':'ref_trans_amt'          ,'l': 'Referred Trans Amt'         ,'u': 'currency'    ,'w': '75px'}
+
     ]
 #TODO: 'account:'inputbox& select button, currentval='$id', submiturl=url_for('referrals_for_account2')
 
@@ -73,11 +82,11 @@ def referrals_by_date(rdate='2012-01-17'):
     """%('/referrals_by_date/',rdate) #note: hardcoded url!
 #(url_for('referrals_for_account2'), id)
     context = {};
-    TITLE='DAILY TIPPR CREDIT REFERRAL REPORT'; SUBTITLE= ' BY DATE';
+    TITLE='DAILY TIPPR CREDIT ACTIVITY REPORT'; SUBTITLE= ' BY DATE';
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='referrals_by_date-v1');
+        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='credits_by_date-v1');
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
