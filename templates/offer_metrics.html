@@ -5,6 +5,9 @@
     <title>
       Offer Detail for {{ name }}
     </title>
+    <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.17/themes/base/jquery-ui.css" type="text/css" media="all">
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js'></script>
+    <script src='https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js'></script>
     <style type="text/css">
     body, html {
         font-family: arial;
@@ -28,6 +31,48 @@
   </head>
 
   <body>
+<script>
+        $(function() {
+                var availableTags = [
+                {% for offer_record in offer_list %}
+                  { label: "{{offer_record[0]}}", id: "{{offer_record[1]}}"},
+                {% endfor %}
+                ];
+                $( "#offer_name" ).autocomplete({
+                        source: availableTags,
+                        zIndex: 9999,
+			select: function(event, ui) {
+				//create formatted friend
+				if (ui.item) {
+				  $("#offer_name").val(ui.item.label);
+				  $("#offer_id").val(ui.item.id)
+				} else {
+				  // Nothing selected
+				}
+				return false;
+			}
+                });
+        });
+        </script>
+
+
+
+<div class="demo">
+
+<div class="ui-widget">
+<form name='offer_search_form' action="http://www0.dev.tippr.com:15000/offer_metrics" method='get'>
+	<label for="offer_name">Search for a recent offer by name: </label>
+        <input style='width:50%;' name="offer_name" id="offer_name"/>
+	<input type='hidden' name="offer_id" id="offer_id" />
+	<input type='submit'/>
+	</form>
+</div>
+
+</div><!-- End demo -->
+
+{% if name == None %}
+    <h3>No data found - please try another offer_id or search using the search form</h3>
+{% else %}  
     <center>
 	<h1>Offer detail for {{ name }}</h1>
     </center>
@@ -44,12 +89,23 @@
     {% endfor %}
     </table> 
 
-    <h3>Purchaser Profile</h3>
+    <h3>Prior Purchaser Profiles (purchases prior to, not including this one)</h3>
     <table border=1>
     <th>Group</th><th>Number</th><th>Percent</th>
-    {% for group in ('First Purchase','2-5 Purchases','6-10 Purchases','10+ Purchases') %}
+    {% for group in ('0 Purchases','1 Purchase','2-5 Purchases','6-10 Purchases','10+ Purchases') %}
 
-    <tr><td>{{group}}</td><td>{{ buyers[group] }}</td><td>{{ '{:.2%}'.format( buyers[group]/unique_buyers ) }}</td></tr>
+    <tr><td>{{group}}</td><td>{{ prior_buyers[group] }}</td><td>{{ '{:.2%}'.format( prior_buyers[group]/unique_buyers ) }}</td></tr>
     {% endfor %}
+    </table>
+
+    <h3>Future Purchaser Profiles (purchases after, not including this one)</h3>
+    <table border=1>
+    <th>Group</th><th>Number</th><th>Percent</th>
+    {% for group in ('0 Purchases','1 Purchase','2-5 Purchases','6-10 Purchases','10+ Purchases') %}
+
+    <tr><td>{{group}}</td><td>{{ future_buyers[group] }}</td><td>{{ '{:.2%}'.format( future_buyers[group]/unique_buyers ) }}</td></tr>
+    {% endfor %}
+    </table>
+{% endif %}
   </body>
 </html>

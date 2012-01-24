@@ -312,25 +312,42 @@ def agent_sales(yyyymm = None):
     	else: #assume format == 'grid':
 		return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, #SUBTITLE=SUBTITLE, 
 			SELECTOR=SELECTOR);
-def offer_metrics(offer_id=None):
+def offer_metrics(offer_id=''):
 	"""
 		Show detailed metrics on a specific offer
 	"""
 
         if offer_id == '':
-          if request.method == 'POST':
+	  if request.method == 'POST':
             offer_id = request.form['offer_id']
-          if offer_id == '':
-            raise Exception("empty offer_id passed in")
+          if request.method == 'GET':
+            offer_id = request.values['offer_id']
 
+          if offer_id == '' or offer_id == None:
+            raise Exception("empty offer_id passed in")
+	
 	TITLE='OFFER METRICS REPORT'
+	metrics = {} 
+	sql = """
+		select offer.name "name", offer.id "id" from core_offer offer where end_date < now() order by end_date desc limit 500;
+	"""
+	sql = sql % {}
+	cols, resultset = throw_sql(sql)
+	offer_list = []
+	for row in resultset:
+		offer_list.append([row[0],row[1]])
+	metrics['offer_list'] = offer_list
+	
 	sql = """
 		 select offer.name "name", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross", avg(transaction.amount)::float "avg_order_amount", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction where item.offer_id = offer.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1; 
 	"""
 	sql = sql % {'offer_id':offer_id}
 	cols, resultset = throw_sql(sql)
-        ROWS = [dict(zip(cols,row)) for row in resultset]
-       	metrics = {}
+        ROWS = [dict(zip(cols,row)) for row in resultset]	
+	metrics['name'] = None	
+	if len(ROWS) == 0:
+		return render_template("offer_metrics.html", **metrics);
+	
 	metrics['name'] = ROWS[0]['name']
 	metrics['unique_buyers'] = ROWS[0]['unique_buyers']
 	metrics['gross_sales'] = ROWS[0]['gross']
@@ -347,26 +364,54 @@ def offer_metrics(offer_id=None):
 	for row in ROWS:
 	  metrics['payments'][row['ptype']] = row['amount']
 	sql = """
-	select name "name", total_trans "trans_count", count(account) "users" from (select offer.name "name",  transaction.account_id "account", count(distinct(acct_trans.id)) "total_trans" from core_offer offer, core_transaction transaction left join core_transaction acct_trans on (transaction.account_id = acct_trans.account_id), core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id group by 1,2) as cust_behavior group by 1,2;
+	select name "name", total_trans "trans_count", count(account) "users" from (select offer.name "name",  transaction.account_id "account", count(distinct(acct_trans.id)) "total_trans" from core_offer offer, core_transaction transaction left join core_transaction acct_trans on (transaction.account_id = acct_trans.account_id and acct_trans.occurrence <= transaction.occurrence and acct_trans.id != transaction.id), core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id group by 1,2) as cust_behavior group by 1,2;
 	"""
  
         sql = sql % {'offer_id':offer_id}
         cols, resultset = throw_sql(sql)
         ROWS = [dict(zip(cols,row)) for row in resultset]
-        metrics['buyers'] = {}
-	metrics['buyers']['First Purchase'] = 0
-	metrics['buyers']['2-5 Purchases'] = 0
- 	metrics['buyers']['6-10 Purchases'] = 0
-	metrics['buyers']['10+ Purchases'] = 0
+        metrics['prior_buyers'] = {}
+	metrics['prior_buyers']['0 Purchases'] = 0
+	metrics['prior_buyers']['1 Purchase'] = 0
+	metrics['prior_buyers']['2-5 Purchases'] = 0
+ 	metrics['prior_buyers']['6-10 Purchases'] = 0
+	metrics['prior_buyers']['10+ Purchases'] = 0
         for row in ROWS:
+          if row['trans_count'] == 0:
+                metrics['prior_buyers']['0 Purchases'] += row['users']
           if row['trans_count'] == 1:
-		metrics['buyers']['First Purchase'] += row['users']
+		metrics['prior_buyers']['1 Purchase'] += row['users']
 	  if row['trans_count'] > 1 and row['trans_count'] <= 5:
-		metrics['buyers']['2-5 Purchases'] += row['users']
+		metrics['prior_buyers']['2-5 Purchases'] += row['users']
 	  if row['trans_count'] > 5 and row['trans_count'] <= 10:
-		metrics['buyers']['6-10 Purchases'] += row['users']
+		metrics['prior_buyers']['6-10 Purchases'] += row['users']
 	  if row['trans_count'] > 10:
-		metrics['buyers']['10+ Purchases'] += row['users']
+		metrics['prior_buyers']['10+ Purchases'] += row['users']
+
+        sql = """
+        select name "name", total_trans "trans_count", count(account) "users" from (select offer.name "name",  transaction.account_id "account", count(distinct(acct_trans.id)) "total_trans" from core_offer offer, core_transaction transaction left join core_transaction acct_trans on (transaction.account_id = acct_trans.account_id and acct_trans.occurrence >= transaction.occurrence and acct_trans.id != transaction.id), core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id group by 1,2) as cust_behavior group by 1,2;
+        """
+
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['future_buyers'] = {}
+	metrics['future_buyers']['0 Purchases'] = 0
+        metrics['future_buyers']['1 Purchase'] = 0
+        metrics['future_buyers']['2-5 Purchases'] = 0
+        metrics['future_buyers']['6-10 Purchases'] = 0
+        metrics['future_buyers']['10+ Purchases'] = 0
+        for row in ROWS:
+	  if row['trans_count'] == 0:
+		metrics['future_buyers']['0 Purchases'] += row['users']
+          if row['trans_count'] == 1:
+                metrics['future_buyers']['1 Purchase'] += row['users']
+          if row['trans_count'] > 1 and row['trans_count'] <= 5:
+                metrics['future_buyers']['2-5 Purchases'] += row['users']
+          if row['trans_count'] > 5 and row['trans_count'] <= 10:
+                metrics['future_buyers']['6-10 Purchases'] += row['users']
+          if row['trans_count'] > 10:
+                metrics['future_buyers']['10+ Purchases'] += row['users']
 
 
 	return render_template("offer_metrics.html", **metrics);

@@ -87,6 +87,7 @@ def index():
 		,{'name': "Offers Dashboard"			,'url': url_for('offers')}
 		,{'name': "Publishers Reports"			,'url': url_for('listpubs')}
 		,{'name': 'Referrals Report'			,'url': url_for('referrals')}
+		,{'name': 'Offer Metrics Report'		,'url': url_for('offer_metrics',offer_id=1)}
 		,{'name': 'Deal Category Report'		,'url': url_for('dealcats')}
 		,{'name': 'Customer Engagement Dashboard'	,'url': url_for('engagement')}
 		,{'name': 'Sales Report by Agent','url': url_for('agent_sales')}
@@ -299,7 +300,7 @@ credits_by_date = app.route("/credits_by_date/", methods=['POST'])(credits_by_da
 
 from reports import offer_metrics
 offer_metrics = app.route("/offer_metrics/<offer_id>")(offer_metrics)
-offer_metrics = app.route("/offer_metrics/", methods=['POST'])(offer_metrics)
+offer_metrics = app.route("/offer_metrics/", methods=['GET','POST'])(offer_metrics)
 
 from reports import dealcats
 dealcats = app.route("/pubreps/dealcats/<id>")(dealcats)
