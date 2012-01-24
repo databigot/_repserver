@@ -297,6 +297,10 @@ from reports import credits_by_date
 credits_by_date = app.route("/credits_by_date/<rdate>")(credits_by_date)
 credits_by_date = app.route("/credits_by_date/", methods=['POST'])(credits_by_date)
 
+from reports import offer_metrics
+offer_metrics = app.route("/offer_metrics/<offer_id>")(offer_metrics)
+offer_metrics = app.route("/offer_metrics/", methods=['POST'])(offer_metrics)
+
 from reports import dealcats
 dealcats = app.route("/pubreps/dealcats/<id>")(dealcats)
 dealcats = app.route("/pubreps/dealcats", methods=['GET','POST'])(dealcats)
