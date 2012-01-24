@@ -329,7 +329,7 @@ def offer_metrics(offer_id=''):
 	TITLE='OFFER METRICS REPORT'
 	metrics = {} 
 	sql = """
-		select offer.name "name", offer.id "id" from core_offer offer where end_date < now() order by end_date desc limit 500;
+		select offer.headline "name", offer.id "id" from core_offer offer where end_date < now() order by end_date desc limit 500;
 	"""
 	sql = sql % {}
 	cols, resultset = throw_sql(sql)
@@ -339,7 +339,7 @@ def offer_metrics(offer_id=''):
 	metrics['offer_list'] = offer_list
 	
 	sql = """
-		 select offer.name "name", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross", avg(transaction.amount)::float "avg_order_amount", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction where item.offer_id = offer.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1; 
+		 select offer.headline "name", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross", avg(transaction.amount)::float "avg_order_amount", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction where item.offer_id = offer.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3; 
 	"""
 	sql = sql % {'offer_id':offer_id}
 	cols, resultset = throw_sql(sql)
@@ -347,7 +347,8 @@ def offer_metrics(offer_id=''):
 	metrics['name'] = None	
 	if len(ROWS) == 0:
 		return render_template("offer_metrics.html", **metrics);
-	
+	metrics['start_date'] = ROWS[0]['start_date']
+	metrics['end_date'] = ROWS[0]['end_date']	
 	metrics['name'] = ROWS[0]['name']
 	metrics['unique_buyers'] = ROWS[0]['unique_buyers']
 	metrics['gross_sales'] = ROWS[0]['gross']
@@ -413,6 +414,22 @@ def offer_metrics(offer_id=''):
           if row['trans_count'] > 10:
                 metrics['future_buyers']['10+ Purchases'] += row['users']
 
+	sql = """
+	select referral.source "source", count(referral.*) "count" from core_referral referral, core_item item where item.transaction_id = referral.transaction_id and item.offer_id='%(offer_id)s' and campaign='Affiliate' and event='offer-purchase' group by 1; 
+	"""
+	sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+	metrics['affiliate_sales'] = ROWS
+
+
+	sql = """
+	select offer.name "name", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross" from core_offer offer, core_item item, core_transaction transaction, core_account account where item.offer_id = offer.id and item.transaction_id = transaction.id and transaction.account_id = account.id and account.date_joined > transaction.occurrence - interval '4 hours' and offer.id = '%(offer_id)s' group by 1;
+	"""
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['new_buyers'] = ROWS[0]['unique_buyers']
 
 	return render_template("offer_metrics.html", **metrics);
 

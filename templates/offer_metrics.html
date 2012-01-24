@@ -57,7 +57,7 @@
 
 
 
-<div class="demo">
+<div class="demo" style='background-color:#CCCCCC;padding:30px'>
 
 <div class="ui-widget">
 <form name='offer_search_form' action="http://www0.dev.tippr.com:15000/offer_metrics" method='get'>
@@ -74,12 +74,14 @@
     <h3>No data found - please try another offer_id or search using the search form</h3>
 {% else %}  
     <center>
-	<h1>Offer detail for {{ name }}</h1>
+	<h2>Offer detail for {{ name }}</h2>
+	<h3>{{start_date}} through {{end_date}}</h3>
     </center>
-    <h3>Gross: {{ '{:,}'.format(gross_sales) }}</h3>
+    <h3>Gross: ${{ '{:.2f}'.format(gross_sales) }}</h3>
     <h3>Unique Buyers: {{ unique_buyers }}</h3>
-    <h3>Avg Order Amount: {{ avg_order_amount }}</h3>
-    <h3>Avg Order Qty: {{ avg_order_qty }}</h3>
+    <h3>New Buyers (created accounts within 4 hours of purchase): {{new_buyers}} ({{ '{:.2%}'.format(new_buyers/unique_buyers) }} of total)</h3>
+    <h3>Avg Order Amount: ${{ '{:.2f}'.format(avg_order_amount) }}</h3>
+    <h3>Avg Order Qty: {{ '{:.1f}'.format(avg_order_qty) }} units</h3>
     <h3>Payment Breakdown</h3>
     <table border=1>
     <th>Type</th><th>Amount</th><th>Percent</th>
@@ -104,6 +106,14 @@
     {% for group in ('0 Purchases','1 Purchase','2-5 Purchases','6-10 Purchases','10+ Purchases') %}
 
     <tr><td>{{group}}</td><td>{{ future_buyers[group] }}</td><td>{{ '{:.2%}'.format( future_buyers[group]/unique_buyers ) }}</td></tr>
+    {% endfor %}
+    </table>
+
+    <h3>Affiliate sales (all sales, including refunds/rejections/etc)</h3>
+    <table border=1>
+    <th>Affiliate</th><th>Referred Purchases</th>
+    {% for row in affiliate_sales %}
+	<tr><td>{{row['source']}}</td><td>{{row['count']}}</td></tr>
     {% endfor %}
     </table>
 {% endif %}
