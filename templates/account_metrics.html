@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>
+      Account Detail for {{ details['account']['fullname'] }}
+    </title>
+    <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.17/themes/base/jquery-ui.css" type="text/css" media="all">
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js'></script>
+    <script src='https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js'></script>
+    <style type="text/css">
+    body, html {
+        font-family: arial;
+        font-size: 10pt;
+    }
+
+    h1 {
+	font-family: arial;
+        font-size:24pt;
+        margin-bottom:0pt;
+    }
+
+    h2 {
+       font-family: arial;
+       font-size: 16pt;
+       margin-top:8pt;
+       margin-bottom:10pt;
+    }
+    </style>
+
+  </head>
+
+  <body>
+<script>
+        $(function() {
+                var availableTags = [
+                {% for offer_record in offer_list %}
+                  { label: "{{offer_record[0]}}", id: "{{offer_record[1]}}"},
+                {% endfor %}
+                ];
+                $( "#offer_name" ).autocomplete({
+                        source: availableTags,
+                        zIndex: 9999,
+			select: function(event, ui) {
+				//create formatted friend
+				if (ui.item) {
+				  $("#offer_name").val(ui.item.label);
+				  $("#offer_id").val(ui.item.id)
+				} else {
+				  // Nothing selected
+				}
+				return false;
+			}
+                });
+        });
+        </script>
+
+
+
+<div class="demo" style='background-color:#CCCCCC;padding:30px'>
+
+<div class="ui-widget">
+<form name='offer_search_form' action="/account_detail" method='get'>
+	<label for="rdate">Enter a new account_id: </label>
+        <input style='width:50%;' name="id" id="id" value=""/>
+	<input type='submit'/>
+	</form>
+</div>
+
+</div><!-- End demo -->
+
+{% if name == None %}
+    <h3>No data found - please try another offer_id or search using the search form</h3>
+{% else %}  
+    <center>
+	<h2>Account detail for {{ details['account']['fullname'] }}</h2>
+	<h3>Join Date: {{ details['account']['date_joined']}}</h3>
+	<h3>Publisher: {{ details['account']['publisher_name']}}</h3>
+    </center>
+
+    <h2>Customer Activity</h2>
+    <h3>Transaction Summary:</h3>
+    <table border=1>
+    <th>Status</th><th>Transactions</th><th>Amount</th><th>First Purchase</th><th>Last Purchase</th>
+    {% for refrow in details['transaction_summary'] %}
+        <tr><td>{{refrow['status']}}</td><td>{{refrow['transactions']}}</td><td>{{ '{:.2f}'.format(refrow['amount']) }}</td><td>{{refrow['first']}}</td><td>{{refrow['last']}}</td></tr>
+    {% endfor %}
+    </table>
+    <hr style='border:0px;height:100px;'/>
+
+    <h2>Referral Activity (Tippr Credit)</h2>
+    <h4>Total Credits Earned: ${{ details['credits_earned'] }}</h4>
+    <h4>Total Credits Remaining: ${{ details['credits_remaining'] }}</h4>
+    <h4>Cumulative Spend By Referred Accounts</h4>
+    <table border=1>
+    <th>Type</th><th>Distinct Accounts</th><th>Transactions</th><th>Amount</th><th>Spend Per Trans</th>
+    
+    {% for refrow in referrals_table %} 
+	<tr><td>{{refrow['type']}}</td><td>{{refrow['accounts']}}</td><td>{{refrow['transactions']}}</td><td>{{ '{:.2f}'.format(refrow['gross']) }}</td><td>{{refrow['spend_per_trans']}}</td></tr>
+    {% endfor %}
+    </table> 
+
+{% endif %}
+  </body>
+</html>

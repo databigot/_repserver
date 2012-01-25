@@ -86,10 +86,11 @@ def index():
 		 {'name': "Purchases Report"			,'url': url_for('purchasereport')}
 		,{'name': "Offers Dashboard"			,'url': url_for('offers')}
 		,{'name': "Publishers Reports"			,'url': url_for('listpubs')}
-		,{'name': 'Referrals Report'			,'url': url_for('referrals')}
+		,{'name': 'Account Detail Report'		,'url': url_for('account_detail')}
 		,{'name': 'Offer Metrics Report'		,'url': url_for('offer_metrics',offer_id=1)}
 		,{'name': 'Deal Category Report'		,'url': url_for('dealcats')}
 		,{'name': 'Customer Engagement Dashboard'	,'url': url_for('engagement')}
+		,{'name': 'TIPPR Daily Credit Report'		,'url': url_for('credits_by_date',rdate='2012-01-01')}
 		,{'name': 'Sales Report by Agent','url': url_for('agent_sales')}
 		] 
 	return render_template("index.html", REPORTS=reports);
@@ -289,14 +290,14 @@ def listpubs():
     SUBTITLE='';
     return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
-from reports import referrals
-referrals = app.route("/referrals/<id>")(referrals)
-referrals = app.route("/referrals/", methods=['GET','POST'])(referrals)
+from reports import account_detail
+account_detail = app.route("/account_detail/<id>")(account_detail)
+account_detail = app.route("/account_detail/", methods=['GET','POST'])(account_detail)
 
 
 from reports import credits_by_date
 credits_by_date = app.route("/credits_by_date/<rdate>")(credits_by_date)
-credits_by_date = app.route("/credits_by_date/", methods=['POST'])(credits_by_date)
+credits_by_date = app.route("/credits_by_date/", methods=['GET','POST'])(credits_by_date)
 
 from reports import offer_metrics
 offer_metrics = app.route("/offer_metrics/<offer_id>")(offer_metrics)

@@ -5,12 +5,14 @@ from utils import csv_out
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
-def credits_by_date(rdate='2012-01-17'):
-    if rdate == '':
-        if request.method == 'POST':
+def credits_by_date(rdate=''):
+    if request.method == 'POST':
             rdate = request.form['rdate']
-        if rdate == '':
-            raise Exception("empty date passed in")
+    if request.method == 'GET':
+            rdate = request.values['rdate']
+    if rdate == '' or rdate == None:
+            raise Exception("empty rdate passed in")
+
     sql = """
 
         select date(credit.activated) ::varchar "credit_activated_date",
@@ -45,15 +47,15 @@ def credits_by_date(rdate='2012-01-17'):
     for row in ROWS:
           referrer_params = []
           referrer_params.append("id=" + row['credit_owner_id'])
-          row['credit_owner_id'] = {'linkto':url_for('referrals'), 'params': referrer_params, 'show':row['credit_owner_id']}
+          row['credit_owner_id'] = {'linkto':url_for('account_detail'), 'params': referrer_params, 'show':row['credit_owner_id']}
 	  referred_params = []
 	  if row['ref_trans_account_id'] != None:
             referred_params.append("id=" + row['ref_trans_account_id'])
-            row['ref_trans_account_id'] = {'linkto':url_for('referrals'), 'params':referred_params, 'show':row['ref_trans_account_id']}
+            row['ref_trans_account_id'] = {'linkto':url_for('account_detail'), 'params':referred_params, 'show':row['ref_trans_account_id']}
  
 	  else:
 	    referred_params.append("id=" + 'none') 
-            row['ref_trans_account_id'] = {'linkto':url_for('referrals'), 'params':referred_params, 'show':'none'}
+            row['ref_trans_account_id'] = {'linkto':url_for('account_detail'), 'params':referred_params, 'show':'none'}
 
     COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
 #TODO: add in tool-tip, and link-logic.
@@ -93,7 +95,7 @@ def credits_by_date(rdate='2012-01-17'):
 
 
 
-def referrals(id='test'):
+def account_detail(id='test'):
     
     if request.method == 'POST':
             id = request.form['id']
@@ -104,12 +106,44 @@ def referrals(id='test'):
     if id == 'test':
         id = '75514bb16add426bb4b8203c4354d893'
 
+    metrics = {}
+    metrics['details'] = {}
+   
+    sql = """
+        select transaction.status "status", count(distinct(transaction.id)) "transactions", sum(transaction.amount) "amount", date(min(transaction.occurrence)) "first", date(max(transaction.occurrence)) "last" from core_transaction transaction where transaction.account_id = '%(account)s' group by 1;
+    """
+    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['details']['transaction_summary'] = ROWS
+
+    sql = """
+	select account.*, publisher.name "publisher_name" from core_account account, core_publisher publisher where account.publisher_id = publisher.id and account.id = '%(account)s';
+    """
+    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['details']['account'] = ROWS[0]
+
+    sql = """
+        select sum(value) "total_earned" from core_credit where account_id = '%(account)s' and status='activated';
+    """
+    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['details']['credits_earned'] = ROWS[0]['total_earned']
+
+    sql = """
+        select sum(value) "total_remaining" from core_credit where account_id = '%(account)s' and status='activated' and id not in (select credit_id from core_creditpayment);
+    """
+    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['details']['credits_remaining'] = ROWS[0]['total_remaining']
+ 
     sql = """
         select sharer.account_id "referred_acct", 
-                transaction.status "txn_type", 
-                count(distinct(transaction.id)) "qty_referred", 
-                sum(transaction.amount)::float "amt_referred",
-                sum(transaction.amount)::float / count(distinct(referred.id)) "avg_amt_per_acct" 
+                transaction.status "type", 
+                count(distinct(transaction.id)) "transactions", 
+                sum(transaction.amount)::float "gross",
+                count(distinct(transaction.account_id)) "accounts",
+		sum(transaction.amount)::float / count(distinct(transaction.id)) "spend_per_trans" 
             from core_invite sharer, core_inviteuse, core_account referred, core_transaction transaction 
             where sharer.account_id = '%(account)s' and invite_id = sharer.id and 
                 transaction.account_id = core_inviteuse.account_id and core_inviteuse.account_id = referred.id 
@@ -118,34 +152,12 @@ def referrals(id='test'):
     """
     cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
-
-    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
-    #TODO: add in tool-tip, and link-logic.
-        {'k':'referred_acct'        ,'l': 'Referrer Account'    ,'u': None            ,'w': '200px'}
-        ,{'k':'txn_type'            ,'l': 'Txn Type'                ,'u': None            ,'w': '130px'}
-        ,{'k':'qty_referred'        ,'l': '# Referred'                ,'u': 'integer'        ,'w': '120px'}
-        ,{'k':'amt_referred'        ,'l': '$ Referred'                ,'u': 'currency'    ,'w': '130px'}
-        ,{'k':'avg_amt_per_acct'    ,'l': 'Avg $/ Account'        ,'u': 'currency'    ,'w': '120px'}
-    ]
-
-    #TODO: 'account:'inputbox& select button, currentval='$id', submiturl=url_for('referrals_for_account2')
-
-    searchform = """
-        <form method='POST' action='%s'> <!--- target is me -->
-            <p><label id='search_label' for='search_input'><span>Account: </span></label>
-            <input id='search_input' name='id' value='%s'>
-            <button type='submit'>Search</button></p> 
-        </form>
-    """%('/referrals2/',id) #note: hardcoded url!
-    #(url_for('referrals_for_account2'), id)
+    metrics['referrals_table'] = ROWS
+    
     context = {};
     TITLE='REFERRED TRANSACTION REPORT'; SUBTITLE= ' BY STATUS';
 
-    format = request.args.get('format','grid');
-    if format == 'csv':
-	return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='reffered-v1');	
-    else: #assume format == 'grid':
-    	return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+    return render_template("account_metrics.html", **metrics);
 
 
 def dealcats(id='test'):
