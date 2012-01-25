@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.17/themes/base/jquery-ui.css" type="text/css" media="all">
     <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js'></script>
     <script src='https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js'></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
     <style type="text/css">
     body, html {
         font-family: arial;
@@ -26,6 +27,38 @@
        margin-top:8pt;
        margin-bottom:10pt;
     }
+    table {
+       border:2px solid black;
+       border-collapse:collapse;
+    }
+    th {
+       background-color:#228888;
+       padding:5px;
+       color:white;
+       font-weight:bold;
+    }
+    td {
+       border:1px solid black;
+    }
+    div.section-content {
+       padding:10px;
+    }
+    h3.section-head {
+       padding:10px;
+       background-color:#222288;
+       color:white;
+    }
+    div.section-main {
+       border:2px solid #222288;
+       width:400px;
+    }
+    div.sub-section {
+       padding:10px;
+       border:1px grey solid;
+       margin:3px;
+       width:350px;
+    }
+
     </style>
 
   </head>
@@ -82,35 +115,76 @@
     <h3>New Buyers (created accounts within 4 hours of purchase): {{new_buyers}} ({{ '{:.2%}'.format(new_buyers/unique_buyers) }} of total)</h3>
     <h3>Avg Order Amount: ${{ '{:.2f}'.format(avg_order_amount) }}</h3>
     <h3>Avg Order Qty: {{ '{:.1f}'.format(avg_order_qty) }} units</h3>
-    <h3>Payment Breakdown</h3>
-    <table border=1>
+    <div id='payment_breakdown' class='section-main'>
+    <h3 class='section-head'>Payment Breakdown</h3>
+    <div class='section-content'>
+    <div id='payment_type_chart' ></div>
+ 
+    <table >
     <th>Type</th><th>Amount</th><th>Percent</th>
     
     {% for pt in payments.iterkeys() %} 
 	<tr><td>{{pt}}</td><td>{{payments[pt]}}</td><td>{{ '{:.2%}'.format(payments[pt]/gross_sales) }}</td></tr>
     {% endfor %}
-    </table> 
-
-    <h3>Prior Purchaser Profiles (purchases prior to, not including this one)</h3>
-    <table border=1>
-    <th>Group</th><th>Number</th><th>Percent</th>
-    {% for group in ('0 Purchases','1 Purchase','2-5 Purchases','6-10 Purchases','10+ Purchases') %}
-
-    <tr><td>{{group}}</td><td>{{ prior_buyers[group] }}</td><td>{{ '{:.2%}'.format( prior_buyers[group]/unique_buyers ) }}</td></tr>
-    {% endfor %}
     </table>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Type');
+        data.addColumn('number', 'Amount');
+        data.addRows([
+          {% for pt in payments.iterkeys() %}
+	    ['{{pt}}',    {{payments[pt]}}],
+	  {% endfor %}
+        ]);
 
-    <h3>Future Purchaser Profiles (purchases after, not including this one)</h3>
-    <table border=1>
+        var options = {
+          width: 375, height: 200,
+          title: 'Purchases by Payment Type'
+        };
+
+        var chart = new google.visualization.PieChart(document.getElementById('payment_type_chart'));
+        chart.draw(data, options);
+      }
+    </script> 
+    </div>
+    </div>
+    <div id='Purchaser Profile' class='section-main' style='width:800px'>
+    <h3 class='section-head'>Purchaser Profiles</h3>
+    <div class='section-content'>
+    <div id='future_purchasers' class='sub-section' style='width:300px;float:right;clear:none'>
+    <b>Future Purchase Behavior</b>
+    <div id='future_purchaser_profile_chart'></div>
+    <table >
     <th>Group</th><th>Number</th><th>Percent</th>
     {% for group in ('0 Purchases','1 Purchase','2-5 Purchases','6-10 Purchases','10+ Purchases') %}
 
     <tr><td>{{group}}</td><td>{{ future_buyers[group] }}</td><td>{{ '{:.2%}'.format( future_buyers[group]/unique_buyers ) }}</td></tr>
     {% endfor %}
     </table>
+    </div>
+    <div id='current_purchase' class='sub-section' style='width:100px;float:right;clear:none'>
+    <center><h3>{{ unique_buyers }}<br/>buyers</h3></center>
+    </div>
+ 
+    <div id='prior_purchasers' class='sub-section' style='width:300px;clear:none'>
+    <b>Prior Purchase Behavior</b>
+    <div id='prior_purchaser_profile_chart'></div>
+    <table >
+    <th>Group</th><th>Number</th><th>Percent</th>
+    {% for group in ('0 Purchases','1 Purchase','2-5 Purchases','6-10 Purchases','10+ Purchases') %}
 
+    <tr><td>{{group}}</td><td>{{ prior_buyers[group] }}</td><td>{{ '{:.2%}'.format( prior_buyers[group]/unique_buyers ) }}</td></tr>
+    {% endfor %}
+    </table>
+    </div>
+
+    </div>
+    </div>
     <h3>Affiliate sales (all sales, including refunds/rejections/etc)</h3>
-    <table border=1>
+    <table >
     <th>Affiliate</th><th>Referred Purchases</th>
     {% for row in affiliate_sales %}
 	<tr><td>{{row['source']}}</td><td>{{row['count']}}</td></tr>

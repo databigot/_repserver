@@ -91,6 +91,7 @@
     <h2>Referral Activity (Tippr Credit)</h2>
     <h4>Total Credits Earned: ${{ details['credits_earned'] }}</h4>
     <h4>Total Credits Remaining: ${{ details['credits_remaining'] }}</h4>
+
     <h4>Cumulative Spend By Referred Accounts</h4>
     <table border=1>
     <th>Type</th><th>Distinct Accounts</th><th>Transactions</th><th>Amount</th><th>Spend Per Trans</th>
@@ -99,6 +100,14 @@
 	<tr><td>{{refrow['type']}}</td><td>{{refrow['accounts']}}</td><td>{{refrow['transactions']}}</td><td>{{ '{:.2f}'.format(refrow['gross']) }}</td><td>{{refrow['spend_per_trans']}}</td></tr>
     {% endfor %}
     </table> 
+
+    <h4>Monthly Referral Report (and cumulative spend of those signups looking forward)</h4>
+    <table border=1>
+    <th>Month</th><th>Accounts</th><th>Cum. Transactions</th><th>Cum. Spend</th><th>Spend Per Account</th>
+    {% for refrow in monthly_referrals_table %}
+        <tr><td>{{refrow['month']}}</td><td>{{refrow['accounts']}}</td><td>{{refrow['transactions']}}</td><td>{{refrow['spend']}}</td><td>{{refrow['spend_per_acct']}}</td></tr>
+    {% endfor %}
+    </table>
 
 {% endif %}
   </body>

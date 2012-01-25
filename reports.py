@@ -153,6 +153,14 @@ def account_detail(id='test'):
     cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     metrics['referrals_table'] = ROWS
+
+    sql = """
+	select sharer.account_id "referrer_account", to_date(to_char(referred.date_joined,'MM-YYYY'),'MM-YYYY') "month", count(distinct(referred.id)) "accounts", count(distinct(transaction.id)) "transactions", sum(transaction.amount) "spend", sum(transaction.amount) / count(distinct(referred.id)) "spend_per_acct" from core_invite sharer, core_inviteuse, core_account referred, core_transaction transaction where sharer.account_id = '%(account)s' and invite_id = sharer.id and transaction.account_id = core_inviteuse.account_id and core_inviteuse.account_id = referred.id and transaction.status = 'completed' group by 1,2 order by 1,2;
+    """
+    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['monthly_referrals_table'] = ROWS
+
     
     context = {};
     TITLE='REFERRED TRANSACTION REPORT'; SUBTITLE= ' BY STATUS';
