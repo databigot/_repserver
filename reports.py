@@ -5,13 +5,10 @@ from utils import csv_out
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
-def credits_by_date(rdate=''):
-    if request.method == 'POST':
-            rdate = request.form['rdate']
-    if request.method == 'GET':
-            rdate = request.values['rdate']
-    if rdate == '' or rdate == None:
-            raise Exception("empty rdate passed in")
+def credits_by_date(rdate='2012-01-01'):
+    rdate_in = request.args.get('rdate')
+    if rdate_in:
+	rdate = rdate_in
 
     sql = """
 
@@ -95,16 +92,12 @@ def credits_by_date(rdate=''):
 
 
 
-def account_detail(id='test'):
+def account_detail(id='d1f5be0616ba4751a9a1a607c6175504'):
     
-    if request.method == 'POST':
-            id = request.form['id']
-    if request.method == 'GET':
-            id = request.values['id']
-    if id == '':
-            raise Exception("empty id")
-    if id == 'test':
-        id = '75514bb16add426bb4b8203c4354d893'
+    id_in = request.args.get('id')
+    if id_in:
+       id = id_in 
+
 
     metrics = {}
     metrics['details'] = {}
@@ -332,19 +325,14 @@ def agent_sales(yyyymm = None):
     	else: #assume format == 'grid':
 		return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, #SUBTITLE=SUBTITLE, 
 			SELECTOR=SELECTOR);
-def offer_metrics(offer_id=''):
+def offer_metrics(offer_id='1'):
 	"""
 		Show detailed metrics on a specific offer
 	"""
 
-        if offer_id == '':
-	  if request.method == 'POST':
-            offer_id = request.form['offer_id']
-          if request.method == 'GET':
-            offer_id = request.values['offer_id']
-
-          if offer_id == '' or offer_id == None:
-            raise Exception("empty offer_id passed in")
+        offer_in = request.args.get('offer_id')
+        if offer_in:
+           offer_id = offer_in 
 	
 	TITLE='OFFER METRICS REPORT'
 	metrics = {} 
