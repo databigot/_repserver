@@ -5,7 +5,73 @@ from utils import csv_out
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
-def credits_by_date(rdate='2012-01-01'):
+
+
+def credit_summary_by_month(rdate='2012-01-01'):
+    rdate_in = request.args.get('rdate')
+    if rdate_in:
+	rdate = rdate_in
+
+    sql = """
+	select static_dates.datei ::varchar "date", 
+		sum(s.value) ::float "share_credits_granted", 
+		(select sum(n.value) 
+			from core_credit n 
+			where date(n.activated)=static_dates.datei 
+			and n.condition='') ::integer "new_account_credits_granted", 
+		(select sum(payment.amount) 
+			from core_payment payment, core_transaction transaction 
+			where payment._polymorphic_identity = 'payment.creditpayment' 
+			and payment.transaction_id = transaction.id 
+			and date(transaction.occurrence) = static_dates.datei) ::integer "credits_spent" 
+	from 
+		(select current_date - s.t as datei 
+			from generate_series(0,2000) as s(t)) as static_dates 
+	left outer join core_credit s 
+		on (date(static_dates.datei) = date(s.activated) and s.condition != '') 
+	where date_trunc('month',static_dates.datei) = '%(rdate)s' 
+	group by static_dates.datei order by 1;
+
+
+    """
+    cols, resultset = throw_sql(sql % {'rdate':rdate}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    for row in ROWS:
+	  referred_params = []
+	  referred_params.append("rdate=" + row['date']) 
+          row['share_credits_granted'] = {'linkto':url_for('credits_granted_by_date'), 'params':referred_params, 'show':'$ ' + str(int(row['share_credits_granted']))}
+          row['new_account_credits_granted'] = {'linkto':url_for('credits_granted_by_date'), 'params':referred_params, 'show':'$ ' + str(int(row['new_account_credits_granted']))}
+
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+#TODO: add in tool-tip, and link-logic.
+        {'k':'date'        ,'l': 'Activity Date'    ,'u': 'date'            ,'w': '80px'}
+        ,{'k':'share_credits_granted',           'l': 'Share Credits Granted','u':'linkto','w':'150px'}
+        ,{'k':'new_account_credits_granted',     'l': 'New Account Credits Granted','u':'linkto','w':'150px'}
+	,{'k':'credits_spent'            ,'l': 'Credits Spent'                ,'u': 'currency','w': '150px'}
+
+    ]
+#TODO: 'account:'inputbox& select button, currentval='$id', submiturl=url_for('referrals_for_account2')
+
+    searchform = """
+        <form method='POST' action='%s'> <!--- target is me -->
+            <p><label id='search_label' for='search_input'><span>Date: </span></label>
+            <input id='search_input' name='date' value='%s'>
+            <button type='submit'>Search</button></p>
+        </form>
+    """%('/credit_summary_by_month/',rdate) #note: hardcoded url!
+#(url_for('referrals_for_account2'), id)
+    context = {};
+    TITLE='CREDIT SUMMARY BY MONTH (ALL PUBLISHERS)'; SUBTITLE= ' BY DATE';
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='credit_summary_by_month-v1');
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+
+
+def credits_granted_by_date(rdate='2012-01-01'):
     rdate_in = request.args.get('rdate')
     if rdate_in:
 	rdate = rdate_in
@@ -78,14 +144,14 @@ def credits_by_date(rdate='2012-01-01'):
             <input id='search_input' name='date' value='%s'>
             <button type='submit'>Search</button></p>
         </form>
-    """%('/referrals_by_date/',rdate) #note: hardcoded url!
+    """%('/credit_grants_by_date/',rdate) #note: hardcoded url!
 #(url_for('referrals_for_account2'), id)
     context = {};
     TITLE='DAILY TIPPR CREDIT ACTIVITY REPORT'; SUBTITLE= ' BY DATE';
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='credits_by_date-v1');
+        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='credit_grants_by_date-v1');
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 

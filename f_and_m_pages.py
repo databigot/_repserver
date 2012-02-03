@@ -34,6 +34,9 @@ def gen_skus_wform():
 		SimpleField(       	id='prefix',    default='ATOM011311',   label='Prefix:'),
 	    	SimpleIntField(     	id='quantity',  default=500,            label='Quantity:'),
     		SimpleField(          	id='sku',       default='ATOMIZER_001', label='Sku:'),
+		SimpleField(		id='sku2',	 default='', label='Sku2:'),
+		SimpleField(		id='sku3',	 default='', label='Sku3:'), 
+		SimpleField(		id='sku4',	 default='', label='Sku4:'),
     		SimpleIntField(		id='discountautoid_start', default=421,    	label='Discount AutoID Start:'),
     		SimpleIntField( 	id='syncid_start',    default=440,            label='SyncID Start:'),
     		SimpleField(  		id='coupon_name',default="Atomizer $12 for $24 including shipping", 	label='Coupon Name:'),
@@ -50,7 +53,7 @@ def gen_skus_wform():
 	sys.stdout = _old
 	return out
 
-def check_params_ok(prefix, quantity, sku, discountautoid_start, syncid_start, coupon_name, amount):
+def check_params_ok(prefix, quantity, sku, sku2, sku3, sku4, discountautoid_start, syncid_start, coupon_name, amount):
 	###NOTE: this should return None if all ok, else return a single error string which will be displayed below the form.
 	#TODO: change to a try, except
 	if (not prefix or not quantity or not sku):
@@ -58,7 +61,7 @@ def check_params_ok(prefix, quantity, sku, discountautoid_start, syncid_start, c
 	return None 
 
 
-def gen_skus(prefix, quantity, sku, discountautoid_start, syncid_start, coupon_name, amount):        
+def gen_skus(prefix, quantity, sku, sku2, sku3, sku4, discountautoid_start, syncid_start, coupon_name, amount):        
     ###DO any sort of validation 
     ### and throw exception if invalid, with the error_text
     print "<hr><br>"
@@ -86,8 +89,15 @@ def gen_skus(prefix, quantity, sku, discountautoid_start, syncid_start, coupon_n
     print "----"
     
     print "discountautoid, name, discounttype, discountvalue, span, couponcode, onetimeuse, cannot_use_with_any_other, taxable_discountaftertax"
+    if (len(sku2.strip()) > 1 or len(sku3.strip()) > 1 or len(sku4.strip()) > 1):
+	# If its a multiproduct we need to set SPAN to Y, otherwise N
+	span = 'Y'
+    else:
+	span = 'N'
+    
     for code in codes:
-        print  str(discountautoid_current) + "," + coupon_name + ",Per Order," + amount + ",N," + str(code) + ",Y,Y,0"
+	
+        print  str(discountautoid_current) + "," + coupon_name + ",Per Order," + amount + "," + str(span) + "," + str(code) + ",Y,Y,0"
         discountautoid_current += 1
 
     print "----"
@@ -98,8 +108,20 @@ def gen_skus(prefix, quantity, sku, discountautoid_start, syncid_start, coupon_n
 
     for code in codes:
         print str(syncid_current) + "," + str(discountautoid_current) + "," + sku
-        discountautoid_current += 1
         syncid_current += 1
+	# If there are multiple SKUs entered, we need to print out a new applies_to for each sku (not incrementing the discountautoid)
+	if len(sku2.strip()) > 1:
+            print str(syncid_current) + "," + str(discountautoid_current) + "," + sku2
+            syncid_current += 1
+	if len(sku3.strip()) > 1:
+            print str(syncid_current) + "," + str(discountautoid_current) + "," + sku3
+            syncid_current += 1
+	if len(sku4.strip()) > 1:
+            print str(syncid_current) + "," + str(discountautoid_current) + "," + sku4
+            syncid_current += 1
+        discountautoid_current += 1
+
+
 
     print "</pre>"
     return 
