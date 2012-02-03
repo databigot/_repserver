@@ -31,16 +31,18 @@ def gen_skus_wform():
 
 	my_form = SimpleForm(template= 'easy_form.html', id='form00')
 	my_form.field_list = [ 
-		SimpleField(       	id='prefix',    default='ATOM011311',   label='Prefix:'),
-	    	SimpleIntField(     	id='quantity',  default=500,            label='Quantity:'),
-    		SimpleField(          	id='sku',       default='ATOMIZER_001', label='Sku:'),
+		SimpleField(       	id='prefix',    default='',   label='Prefix:'),
+	    	SimpleIntField(     	id='quantity',  default=0,            label='Quantity:'),
+    		SimpleField(          	id='sku',       default='', label='Sku1:'),
 		SimpleField(		id='sku2',	 default='', label='Sku2:'),
 		SimpleField(		id='sku3',	 default='', label='Sku3:'), 
 		SimpleField(		id='sku4',	 default='', label='Sku4:'),
-    		SimpleIntField(		id='discountautoid_start', default=421,    	label='Discount AutoID Start:'),
-    		SimpleIntField( 	id='syncid_start',    default=440,            label='SyncID Start:'),
-    		SimpleField(  		id='coupon_name',default="Atomizer $12 for $24 including shipping", 	label='Coupon Name:'),
-    		SimpleField( 	  	id='amount',    default='15.98',	label='Amount:')
+		SimpleField(		id='sku5',	 default='', label='Sku5:'),
+		SimpleField(		id='sku6',	 default='', label='Sku6:'),
+    		SimpleIntField(		id='discountautoid_start', default=0,    	label='Discount AutoID Start:'),
+    		SimpleIntField( 	id='syncid_start',    default=0,            label='SyncID Start:'),
+    		SimpleField(  		id='coupon_name',default="", 	label='Coupon Name:'),
+    		SimpleField( 	  	id='amount',    default='',	label='Amount:')
 	]
 	#my_form.do_validate=check_params_ok #set validator routine
 
@@ -53,7 +55,7 @@ def gen_skus_wform():
 	sys.stdout = _old
 	return out
 
-def check_params_ok(prefix, quantity, sku, sku2, sku3, sku4, discountautoid_start, syncid_start, coupon_name, amount):
+def check_params_ok(prefix, quantity, sku, sku2, sku3, sku4, sku5, sku6, discountautoid_start, syncid_start, coupon_name, amount):
 	###NOTE: this should return None if all ok, else return a single error string which will be displayed below the form.
 	#TODO: change to a try, except
 	if (not prefix or not quantity or not sku):
@@ -61,7 +63,7 @@ def check_params_ok(prefix, quantity, sku, sku2, sku3, sku4, discountautoid_star
 	return None 
 
 
-def gen_skus(prefix, quantity, sku, sku2, sku3, sku4, discountautoid_start, syncid_start, coupon_name, amount):        
+def gen_skus(prefix, quantity, sku, sku2, sku3, sku4, sku5, sku6, discountautoid_start, syncid_start, coupon_name, amount):        
     ###DO any sort of validation 
     ### and throw exception if invalid, with the error_text
     print "<hr><br>"
@@ -89,7 +91,7 @@ def gen_skus(prefix, quantity, sku, sku2, sku3, sku4, discountautoid_start, sync
     print "----"
     
     print "discountautoid, name, discounttype, discountvalue, span, couponcode, onetimeuse, cannot_use_with_any_other, taxable_discountaftertax"
-    if (len(sku2.strip()) > 1 or len(sku3.strip()) > 1 or len(sku4.strip()) > 1):
+    if (len(sku2.strip()) > 1 or len(sku3.strip()) > 1 or len(sku4.strip()) > 1 or len(sku5.strip()) > 1 or len(sku6.strip()) > 1):
 	# If its a multiproduct we need to set SPAN to Y, otherwise N
 	span = 'Y'
     else:
@@ -119,6 +121,13 @@ def gen_skus(prefix, quantity, sku, sku2, sku3, sku4, discountautoid_start, sync
 	if len(sku4.strip()) > 1:
             print str(syncid_current) + "," + str(discountautoid_current) + "," + sku4
             syncid_current += 1
+        if len(sku5.strip()) > 1:
+            print str(syncid_current) + "," + str(discountautoid_current) + "," + sku5
+            syncid_current += 1
+        if len(sku6.strip()) > 1:
+            print str(syncid_current) + "," + str(discountautoid_current) + "," + sku6
+            syncid_current += 1
+
         discountautoid_current += 1
 
 
