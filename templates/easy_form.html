@@ -1,0 +1,25 @@
+
+
+
+
+
+
+<html>
+<head>
+</head>
+<body>
+<div>
+	<form method='POST' id='form01' action=''> <!-- target is me --> 
+		{% for field in FIELDS %}
+		<label for='{{ field.id }}'> {{ field.label }} </label>
+			<input type='text' id='{{ field.id }}' name='{{ field.id }}' value='{{ field.value }}'><br>
+		{% endfor %}
+		<input type='submit'>
+	</form>
+
+	{% if ERRORS %}
+		<strong> Error: {{ ERRORS }} </strong>
+	{% endif %}
+</div>
+<body>
+</html>

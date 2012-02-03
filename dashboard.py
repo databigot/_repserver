@@ -233,6 +233,11 @@ def restrict_to(*whitelist): #
 	return _restrict
    return decorator
 
+
+
+
+
+
 from reports import engagement 
 engagement = restrict_to("TEST1","TEST2")(engagement)
 engagement = app.route("/pubreps/engage/")(engagement)
@@ -246,6 +251,10 @@ agent_sales = app.route("/agent_sales/")(agent_sales)
 
 from mongo_reps import subscriptions
 subs = app.route("/subs")(subscriptions)
+
+
+from f_and_m_pages import gen_skus_wform 
+gen_skus_wform = app.route("/volusion", methods=['GET', 'POST'] )(gen_skus_wform)
 
 
 @app.route("/")
