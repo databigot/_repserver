@@ -1,0 +1,195 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>
+      Offer Detail for {{ name }}
+    </title>
+    <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.17/themes/base/jquery-ui.css" type="text/css" media="all">
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js'></script>
+    <script src='https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js'></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <style type="text/css">
+    body, html {
+        font-family: arial;
+        font-size: 10pt;
+    }
+
+    h1 {
+	font-family: arial;
+        font-size:24pt;
+        margin-bottom:0pt;
+    }
+
+    h2 {
+       font-family: arial;
+       font-size: 16pt;
+       margin-top:8pt;
+       margin-bottom:10pt;
+    }
+    table {
+       border:2px solid black;
+       border-collapse:collapse;
+    }
+    th {
+       background-color:#228888;
+       padding:5px;
+       color:white;
+       font-weight:bold;
+    }
+    td {
+       border:1px solid black;
+    }
+    div.section-content {
+       padding:10px;
+    }
+    h3.section-head {
+       padding:10px;
+       background-color:#222288;
+       color:white;
+    }
+    div.section-main {
+       border:2px solid #222288;
+       width:400px;
+    }
+    div.sub-section {
+       padding:10px;
+       border:1px grey solid;
+       margin:3px;
+       width:350px;
+    }
+
+    </style>
+
+  </head>
+
+  <body>
+<script>
+        $(function() {
+                var availableTags = [
+                {% for offer_record in offer_list %}
+                  { label: "{{offer_record[0]}}", id: "{{offer_record[1]}}"},
+                {% endfor %}
+                ];
+                $( "#offer_name" ).autocomplete({
+                        source: availableTags,
+                        zIndex: 9999,
+			select: function(event, ui) {
+				//create formatted friend
+				if (ui.item) {
+				  $("#offer_name").val(ui.item.label);
+				  $("#offer_id").val(ui.item.id)
+				} else {
+				  // Nothing selected
+				}
+				return false;
+			}
+                });
+        });
+        </script>
+
+
+
+<div class="demo" style='background-color:#CCCCCC;padding:30px'>
+
+<div class="ui-widget">
+<form name='offer_search_form' action="/offer_metrics" method='get'>
+	<label for="offer_name">Search for a recent offer by name: </label>
+        <input style='width:50%;' name="offer_name" id="offer_name"/>
+	<input type='hidden' name="offer_id" id="offer_id" />
+	<input type='submit'/>
+	</form>
+</div>
+
+</div><!-- End demo -->
+
+{% if name == None %}
+    <h3>No data found - please try another offer_id or search using the search form</h3>
+{% else %}  
+    <center>
+	<h2>Offer detail for {{ name }}</h2>
+	<h3>{{start_date}} through {{end_date}}</h3>
+    </center>
+    <h3>Gross: ${{ '{:.2f}'.format(gross_sales) }}</h3>
+    <h3>Unique Buyers: {{ unique_buyers }}</h3>
+    <h3>New Buyers (created accounts within 4 hours of purchase): {{new_buyers}} ({{ '{:.2%}'.format(new_buyers/unique_buyers) }} of total)</h3>
+    <h3>Avg Order Amount: ${{ '{:.2f}'.format(avg_order_amount) }}</h3>
+    <h3>Avg Order Qty: {{ '{:.1f}'.format(avg_order_qty) }} units</h3>
+    <div id='payment_breakdown' class='section-main'>
+    <h3 class='section-head'>Payment Breakdown</h3>
+    <div class='section-content'>
+    <div id='payment_type_chart' ></div>
+ 
+    <table >
+    <th>Type</th><th>Amount</th><th>Percent</th>
+    
+    {% for pt in payments.iterkeys() %} 
+	<tr><td>{{pt}}</td><td>{{payments[pt]}}</td><td>{{ '{:.2%}'.format(payments[pt]/gross_sales) }}</td></tr>
+    {% endfor %}
+    </table>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Type');
+        data.addColumn('number', 'Amount');
+        data.addRows([
+          {% for pt in payments.iterkeys() %}
+	    ['{{pt}}',    {{payments[pt]}}],
+	  {% endfor %}
+        ]);
+
+        var options = {
+          width: 375, height: 200,
+          title: 'Purchases by Payment Type'
+        };
+
+        var chart = new google.visualization.PieChart(document.getElementById('payment_type_chart'));
+        chart.draw(data, options);
+      }
+    </script> 
+    </div>
+    </div>
+    <div id='Purchaser Profile' class='section-main' style='width:800px'>
+    <h3 class='section-head'>Purchaser Profiles</h3>
+    <div class='section-content'>
+    <div id='future_purchasers' class='sub-section' style='width:300px;float:right;clear:none'>
+    <b>Future Purchase Behavior</b>
+    <div id='future_purchaser_profile_chart'></div>
+    <table >
+    <th>Group</th><th>Number</th><th>Percent</th>
+    {% for group in ('0 Purchases','1 Purchase','2-5 Purchases','6-10 Purchases','10+ Purchases') %}
+
+    <tr><td>{{group}}</td><td>{{ future_buyers[group] }}</td><td>{{ '{:.2%}'.format( future_buyers[group]/unique_buyers ) }}</td></tr>
+    {% endfor %}
+    </table>
+    </div>
+    <div id='current_purchase' class='sub-section' style='width:100px;float:right;clear:none'>
+    <center><h3>{{ unique_buyers }}<br/>buyers</h3></center>
+    </div>
+ 
+    <div id='prior_purchasers' class='sub-section' style='width:300px;clear:none'>
+    <b>Prior Purchase Behavior</b>
+    <div id='prior_purchaser_profile_chart'></div>
+    <table >
+    <th>Group</th><th>Number</th><th>Percent</th>
+    {% for group in ('0 Purchases','1 Purchase','2-5 Purchases','6-10 Purchases','10+ Purchases') %}
+
+    <tr><td>{{group}}</td><td>{{ prior_buyers[group] }}</td><td>{{ '{:.2%}'.format( prior_buyers[group]/unique_buyers ) }}</td></tr>
+    {% endfor %}
+    </table>
+    </div>
+
+    </div>
+    </div>
+    <h3>Affiliate sales (all sales, including refunds/rejections/etc)</h3>
+    <table >
+    <th>Affiliate</th><th>Referred Purchases</th>
+    {% for row in affiliate_sales %}
+	<tr><td>{{row['source']}}</td><td>{{row['count']}}</td></tr>
+    {% endfor %}
+    </table>
+{% endif %}
+  </body>
+</html>

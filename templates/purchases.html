@@ -1,0 +1,93 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>
+      Recent Purchases
+    </title>
+    <script type="text/javascript" src="http://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load('visualization', '1', {packages: ['corechart', 'table']});
+    </script>
+    <script type="text/javascript">
+      function drawVisualization() {
+	var data = new google.visualization.DataTable();
+	data.addColumn( 'string', 'Date' );
+	{% for o in offers %}
+        data.addColumn( 'number', '{{ names[o] }}' );
+        {% endfor %}
+
+        data.addRows( {{ days | length }} );
+
+	{% for d in days | sort %}
+            {% set day_loop = loop %}
+            data.setValue( {{ day_loop.index0 }}, 0, "{{ d }}" );
+            {% for o in offers %}
+            data.setValue( {{ day_loop.index0 }}, {{ loop.index }}, {{ days[d][o] | default(0) }} );
+            {% endfor %}
+        {% endfor %}
+
+        var ac = new google.visualization.ColumnChart(document.getElementById('visualization'));
+        ac.draw(data, {
+          title : 'Recent Purchases',
+          isStacked: true,
+          width: 1000,
+          height: 800,
+          vAxis: {title: "Purchases"},
+          hAxis: {title: "Date"}
+        });
+
+
+
+        var data3 = new google.visualization.DataTable();
+        data3.addColumn( 'string', 'Date' );
+        data3.addColumn( 'number', '# Vouchers Purchased' );
+
+        {% for r in p30 %}
+        data3.addRow( [ '{{r["date"]}}', {{r["count"]}} ] );
+        {% endfor %}
+
+        var ac2 = new google.visualization.LineChart(document.getElementById('visualization2'));
+        ac2.draw(data3, {
+          title : 'Last 30 days',
+          width: 1000,
+          height: 800,
+          vAxis: {title: "Purchases"},
+          hAxis: {title: "Date"}
+        });
+
+
+
+        var data2 = new google.visualization.DataTable();
+	data2.addColumn( 'string', 'Offer' );
+	data2.addColumn( 'number', 'Yesterday' );
+	data2.addColumn( 'number', 'Today' );
+
+	data2.addRows( {{ offers | length }} )
+
+	{% for o in offers %}
+        data2.setValue( {{loop.index0}}, 0, "{{names[o]}}" );
+        data2.setValue( {{loop.index0}}, 1, {{ days[yesterday][o] | default(0) }} )
+        data2.setValue( {{loop.index0}}, 2, {{ days[today][o] | default(0) }} )
+        {% endfor %}
+
+        var table = new google.visualization.Table( document.getElementById('table') );
+        table.draw(data2, {  });
+
+      }
+      google.setOnLoadCallback(drawVisualization);
+    </script>
+  </head>
+  <body style="font-family: Arial;border: 0 none;">
+    <table><tr>
+    <td valign=top>
+    <div id="visualization" style="width: 1000px; height: 800px;"></div>
+    <div id="visualization2" style="width: 1000px; height: 800px;"></div>
+    </td>
+    <td valign=top>
+    <center><h2>Purchases counts</h2><center><br />
+    <div id="table" style="width:400px"></div>
+    </td>
+    </tr></table>
+  </body>
+</html>

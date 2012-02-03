@@ -14,17 +14,89 @@ from settings import *
 import hashlib
 from pymongo import Connection, ReadPreference
 import math
+from datetime import date, timedelta
 
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
 app = Flask(__name__)
-oid = OpenID(app, '/tmp/'+str(UID))
 
 @app.context_processor
 def inject_now():
     return dict(now=datetime.datetime.isoformat(datetime.datetime.now()))
 
+
+#=========================================================
+#
+#  Open ID Support code
+
+
+oid = OpenID(app, '/tmp/'+str(UID))
+
+@app.before_request
+def lookup_current_user():
+    g.user = None
+    if 'openid' in session:
+        if session['email'].lower().endswith("@tippr.com"):
+            g.user = session['email']
+            return
+
+    if (request.path != "/login") and (not g.user):
+        return redirect("/login")
+
+
+@app.route('/login', methods=['GET', 'POST'])
+@oid.loginhandler
+def login():
+    if g.user is not None:
+        return redirect(oid.get_next_url())
+
+    openid = request.form.get('openid')
+    if not openid:
+        openid = COMMON_PROVIDERS["google"]
+
+    if openid:
+        resp = oid.try_login(openid, ask_for=['email'])
+        return resp
+
+    raise Exception("Shouldn't get here")
+
+
+@app.route("/logout")
+def logout():
+    if g.user:
+        del session['openid']
+    return redirect("/login")
+
+
+@oid.after_login
+def create_or_login(resp):
+    session['openid'] = resp.identity_url
+    session['email'] = resp.email
+
+    next = oid.get_next_url()
+    return redirect( next )
+
+
+#=========================================================
+
+@app.route("/")
+def index():
+	reports = [
+		 {'name': "Purchases Report"			,'url': url_for('purchasereport')}
+		,{'name': "Offers Dashboard"			,'url': url_for('offers')}
+		,{'name': "Publishers Reports"			,'url': url_for('listpubs')}
+		,{'name': 'Account Detail Report'		,'url': url_for('account_detail')}
+		,{'name': 'Offer Metrics Report'		,'url': url_for('offer_metrics',offer_id=1)}
+		,{'name': 'Deal Category Report'		,'url': url_for('dealcats')}
+		,{'name': 'Customer Engagement Dashboard'	,'url': url_for('engagement')}
+		,{'name': 'TIPPR Daily Credit Report'		,'url': url_for('credits_by_date',rdate='2012-01-01')}
+		,{'name': 'Sales Report by Agent','url': url_for('agent_sales')}
+		] 
+	return render_template("index.html", REPORTS=reports);
+
+
+#--------------------------------------------------------
 
 
 recentbad_sql = ( "select p.name, o.id, o.name, o.start_date, o.end_date, o.automatable, o.status, t.status, count(*)"
@@ -46,6 +118,14 @@ inprocess_sql = ( "select p.name, o.id, o.name, o.start_date, o.end_date, o.auto
                 "   and i.transaction_id = t.id"
                 " group by p.name, o.id, o.name, o.start_date, o.end_date, o.automatable, o.status, t.status"
                 " order by end_date desc" )
+
+
+@app.route("/offers/")
+def offers():
+    recentbad = get_offers( recentbad_sql )
+    stillrunning = get_offers( inprocess_sql )
+    return render_template("dashboard.html",failed=filter( lambda x: x["failed%"] > 25, recentbad ), current=stillrunning)
+
 
 def get_offers(sql):
     try:
@@ -82,57 +162,66 @@ def get_offers(sql):
         print "I am unable to connect to the database", e
         return None
 
+#--------------------------------------------------------
 
-@app.before_request
-def lookup_current_user():
-    g.user = None
-    if 'openid' in session:
-        if session['email'].lower().endswith("@tippr.com"):
-            g.user = session['email']
-            return
+purchase_sql = ( "select o.id "
+                 "     , o.headline"
+                 "     , date(t.occurrence)"
+                 "     , count(i.id)"
+                 "  from core_offer o, core_item i, core_transaction t"
+                 " where (i.offer_id = o.id)"
+                 "   and (i.transaction_id = t.id)"
+                 "   and (t.status in ('completed','pending'))"
+                 "   and (t.occurrence > current_date-7)"
+                 " group by o.id, headline, date(occurrence)"
+                 " order by o.id, date" )
 
-    if (request.path != "/login") and (not g.user):
-        return redirect("/login")
+purchase30_sql = ( "select date(occurrence), count(i.id) "
+                   "  from core_item i, core_transaction t"
+                   " where (i.transaction_id = t.id)"
+                   "   and (date(occurrence) > current_date-30)"
+                   "   and (t.status in ('completed', 'pending'))" 
+                   " group by date(occurrence)"
+                   " order by date(occurrence)" )
 
-@app.route('/login', methods=['GET', 'POST'])
-@oid.loginhandler
-def login():
-    if g.user is not None:
-        return redirect(oid.get_next_url())
-
-    openid = request.form.get('openid')
-    if not openid:
-        openid = COMMON_PROVIDERS["google"]
-
-    if openid:
-        resp = oid.try_login(openid, ask_for=['email'])
-        return resp
-
-    raise Exception("Shouldn't get here")
-
-@app.route("/logout")
-def logout():
-    if g.user:
-        del session['openid']
-    return redirect("/login")
+@app.route("/purchases/")
+def purchasereport():
+    # get the raw data back from the db
+    results = execute_sql( purchase_sql, None )
 
 
-@oid.after_login
-def create_or_login(resp):
-    session['openid'] = resp.identity_url
-    session['email'] = resp.email
+    offers = []
+    days = {}
+    names = {}
+    for r in results:
+        if r["count"] == 0:
+            continue; 
 
-    next = oid.get_next_url()
-    return redirect( next )
+        if not r["id"] in offers:
+            offers.append( r["id"] )
+            names[r["id"]] = r["headline"]
+        if not r["date"] in days:
+            days[r["date"]] = {}
+        days[r["date"]][r["id"]] = r["count"]
 
-@app.route("/offers/")
-def dashboard():
-    recentbad = get_offers( recentbad_sql )
-    stillrunning = get_offers( inprocess_sql )
-    return render_template("dashboard.html",failed=filter( lambda x: x["failed%"] > 25, recentbad ), current=stillrunning)
+
+    context = {}
+    context["p30"] = execute_sql( purchase30_sql )
+    context["names"] = names
+    context["days"] = days
+    context["offers"] = offers
+    context["today"] = date.today()
+    context["yesterday"] = date.today() - timedelta(days=1)
+
+    return render_template('purchases.html', **context )
+
+
+#--------------------------------------------------------
+
+
 
 ##TODO:move to sqlhelpers.py
-def execute_sql( sql, params ):
+def execute_sql( sql, params=None ):
     try:
         conn = psycopg2.connect("dbname='silos' user='django' host='127.0.0.1'")
         curr = conn.cursor()
@@ -201,9 +290,18 @@ def listpubs():
     SUBTITLE='';
     return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
-from reports import referrals
-referrals = app.route("/referrals/<id>")(referrals)
-referrals = app.route("/referrals/", methods=['POST'])(referrals)
+from reports import account_detail
+account_detail = app.route("/account_detail/<id>")(account_detail)
+account_detail = app.route("/account_detail/", methods=['GET','POST'])(account_detail)
+
+
+from reports import credits_by_date
+credits_by_date = app.route("/credits_by_date/<rdate>")(credits_by_date)
+credits_by_date = app.route("/credits_by_date/", methods=['GET','POST'])(credits_by_date)
+
+from reports import offer_metrics
+offer_metrics = app.route("/offer_metrics/<offer_id>")(offer_metrics)
+offer_metrics = app.route("/offer_metrics/", methods=['GET','POST'])(offer_metrics)
 
 from reports import dealcats
 dealcats = app.route("/pubreps/dealcats/<id>")(dealcats)

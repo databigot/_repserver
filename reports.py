@@ -5,21 +5,138 @@ from utils import csv_out
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
+def credits_by_date(rdate='2012-01-01'):
+    rdate_in = request.args.get('rdate')
+    if rdate_in:
+	rdate = rdate_in
 
-def referrals(id='test'):
-    if id == '':
-        if request.method == 'POST':
-            id = request.form['id']
-        if id == '':
-            raise Exception("empty id") 
-    if id == 'test':
-        id = '75514bb16add426bb4b8203c4354d893'    
+    sql = """
+
+        select date(credit.activated) ::varchar "credit_activated_date",
+                account.id "credit_owner_id",
+		account.fullname "credit_owner_name",
+		emailaddress.email "credit_owner_email",
+		publisher.name "credit_owner_publisher_name",
+		transaction.id "ref_trans_id",		
+                transaction.status "ref_trans_status",
+                transaction.amount ::float "ref_trans_amt",
+		ref_account.id "ref_trans_account_id",
+		ref_account.fullname "ref_trans_account_name",
+		ref_email.email "ref_trans_account_email",
+                credit.value ::float "credit_amount"
+          from
+                core_publisher publisher,
+		core_emailaddress emailaddress,
+		core_account account,
+		core_credit credit 
+                left join core_transaction transaction on (credit.transaction_id = transaction.id) 
+		left join core_account ref_account on (transaction.account_id = ref_account.id)
+                left join core_emailaddress ref_email on (ref_account.id = ref_email.account_id)
+          where
+                publisher.id = account.publisher_id and
+		emailaddress.account_id = account.id and
+		account.id = credit.account_id and
+		date(credit.activated) = '%(rdate)s'; 
+
+    """
+    cols, resultset = throw_sql(sql % {'rdate':rdate}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    for row in ROWS:
+          referrer_params = []
+          referrer_params.append("id=" + row['credit_owner_id'])
+          row['credit_owner_id'] = {'linkto':url_for('account_detail'), 'params': referrer_params, 'show':row['credit_owner_id']}
+	  referred_params = []
+	  if row['ref_trans_account_id'] != None:
+            referred_params.append("id=" + row['ref_trans_account_id'])
+            row['ref_trans_account_id'] = {'linkto':url_for('account_detail'), 'params':referred_params, 'show':row['ref_trans_account_id']}
+ 
+	  else:
+	    referred_params.append("id=" + 'none') 
+            row['ref_trans_account_id'] = {'linkto':url_for('account_detail'), 'params':referred_params, 'show':'none'}
+
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+#TODO: add in tool-tip, and link-logic.
+        {'k':'credit_activated_date'        ,'l': 'Credit Activated'    ,'u': 'date'            ,'w': '80px'}
+        ,{'k':'credit_amount',           'l': 'Credit Amount','u':'currency','w':'50px'}
+        ,{'k':'credit_owner_publisher_name'            ,'l': 'Publisher'                ,'u': None            ,'w': '130px'}
+        ,{'k':'credit_owner_id'        ,'l': 'Referrer ID'                ,'u': 'linkto'        ,'w': '150px'}
+        ,{'k':'credit_owner_name'        ,'l': 'Referrer Name'                ,'u': None    ,'w': '140px'}
+        ,{'k':'credit_owner_email'    ,'l': 'Referrer Email'        ,'u': None    ,'w': '150px'}
+        ,{'k':'ref_trans_account_id'    ,'l': 'Referred Account ID' ,'u': 'linkto'  ,'w': '150px'}
+	,{'k':'ref_trans_account_name'  ,'l': 'Referred Account Name','u': None ,'w': '140px'}
+	,{'k':'ref_trans_account_email' ,'l': 'Referred Account Email','u': None,'w': '150px'}
+        ,{'k':'ref_trans_id'    ,'l': 'Referred Trans ID'   ,'u': None  ,'w': '120px'}
+        ,{'k':'ref_trans_status'        ,'l': 'Referred Trans Status'       ,'u': None    ,'w': '100px'}
+        ,{'k':'ref_trans_amt'          ,'l': 'Referred Trans Amt'         ,'u': 'currency'    ,'w': '75px'}
+
+    ]
+#TODO: 'account:'inputbox& select button, currentval='$id', submiturl=url_for('referrals_for_account2')
+
+    searchform = """
+        <form method='POST' action='%s'> <!--- target is me -->
+            <p><label id='search_label' for='search_input'><span>Date: </span></label>
+            <input id='search_input' name='date' value='%s'>
+            <button type='submit'>Search</button></p>
+        </form>
+    """%('/referrals_by_date/',rdate) #note: hardcoded url!
+#(url_for('referrals_for_account2'), id)
+    context = {};
+    TITLE='DAILY TIPPR CREDIT ACTIVITY REPORT'; SUBTITLE= ' BY DATE';
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='credits_by_date-v1');
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+
+
+
+def account_detail(id='d1f5be0616ba4751a9a1a607c6175504'):
+    
+    id_in = request.args.get('id')
+    if id_in:
+       id = id_in 
+
+
+    metrics = {}
+    metrics['details'] = {}
+   
+    sql = """
+        select transaction.status "status", count(distinct(transaction.id)) "transactions", sum(transaction.amount) "amount", date(min(transaction.occurrence)) "first", date(max(transaction.occurrence)) "last" from core_transaction transaction where transaction.account_id = '%(account)s' group by 1;
+    """
+    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['details']['transaction_summary'] = ROWS
+
+    sql = """
+	select account.*, publisher.name "publisher_name" from core_account account, core_publisher publisher where account.publisher_id = publisher.id and account.id = '%(account)s';
+    """
+    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['details']['account'] = ROWS[0]
+
+    sql = """
+        select sum(value) "total_earned" from core_credit where account_id = '%(account)s' and status='activated';
+    """
+    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['details']['credits_earned'] = ROWS[0]['total_earned']
+
+    sql = """
+        select sum(value) "total_remaining" from core_credit where account_id = '%(account)s' and status='activated' and id not in (select credit_id from core_creditpayment);
+    """
+    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['details']['credits_remaining'] = ROWS[0]['total_remaining']
+ 
     sql = """
         select sharer.account_id "referred_acct", 
-                transaction.status "txn_type", 
-                count(distinct(transaction.id)) "qty_referred", 
-                sum(transaction.amount)::float "amt_referred",
-                sum(transaction.amount)::float / count(distinct(referred.id)) "avg_amt_per_acct" 
+                transaction.status "type", 
+                count(distinct(transaction.id)) "transactions", 
+                sum(transaction.amount)::float "gross",
+                count(distinct(transaction.account_id)) "accounts",
+		sum(transaction.amount)::float / count(distinct(transaction.id)) "spend_per_trans" 
             from core_invite sharer, core_inviteuse, core_account referred, core_transaction transaction 
             where sharer.account_id = '%(account)s' and invite_id = sharer.id and 
                 transaction.account_id = core_inviteuse.account_id and core_inviteuse.account_id = referred.id 
@@ -28,34 +145,20 @@ def referrals(id='test'):
     """
     cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['referrals_table'] = ROWS
 
-    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
-#TODO: add in tool-tip, and link-logic.
-        {'k':'referred_acct'        ,'l': 'Referrer Account'    ,'u': None            ,'w': '200px'}
-        ,{'k':'txn_type'            ,'l': 'Txn Type'                ,'u': None            ,'w': '130px'}
-        ,{'k':'qty_referred'        ,'l': '# Referred'                ,'u': 'integer'        ,'w': '120px'}
-        ,{'k':'amt_referred'        ,'l': '$ Referred'                ,'u': 'currency'    ,'w': '130px'}
-        ,{'k':'avg_amt_per_acct'    ,'l': 'Avg $/ Account'        ,'u': 'currency'    ,'w': '120px'}
-    ]
+    sql = """
+	select sharer.account_id "referrer_account", to_date(to_char(referred.date_joined,'MM-YYYY'),'MM-YYYY') "month", count(distinct(referred.id)) "accounts", count(distinct(transaction.id)) "transactions", sum(transaction.amount) "spend", sum(transaction.amount) / count(distinct(referred.id)) "spend_per_acct" from core_invite sharer, core_inviteuse, core_account referred, core_transaction transaction where sharer.account_id = '%(account)s' and invite_id = sharer.id and transaction.account_id = core_inviteuse.account_id and core_inviteuse.account_id = referred.id and transaction.status = 'completed' group by 1,2 order by 1,2;
+    """
+    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['monthly_referrals_table'] = ROWS
 
-#TODO: 'account:'inputbox& select button, currentval='$id', submiturl=url_for('referrals_for_account2')
-
-    searchform = """
-        <form method='POST' action='%s'> <!--- target is me -->
-            <p><label id='search_label' for='search_input'><span>Account: </span></label>
-            <input id='search_input' name='id' value='%s'>
-            <button type='submit'>Search</button></p> 
-        </form>
-    """%('/referrals2/',id) #note: hardcoded url!
-#(url_for('referrals_for_account2'), id)
+    
     context = {};
     TITLE='REFERRED TRANSACTION REPORT'; SUBTITLE= ' BY STATUS';
 
-    format = request.args.get('format','grid');
-    if format == 'csv':
-	return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='reffered-v1');	
-    else: #assume format == 'grid':
-    	return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+    return render_template("account_metrics.html", **metrics);
 
 
 def dealcats(id='test'):
@@ -222,6 +325,122 @@ def agent_sales(yyyymm = None):
     	else: #assume format == 'grid':
 		return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, #SUBTITLE=SUBTITLE, 
 			SELECTOR=SELECTOR);
+def offer_metrics(offer_id='1'):
+	"""
+		Show detailed metrics on a specific offer
+	"""
+
+        offer_in = request.args.get('offer_id')
+        if offer_in:
+           offer_id = offer_in 
+	
+	TITLE='OFFER METRICS REPORT'
+	metrics = {} 
+	sql = """
+		select offer.headline "name", offer.id "id" from core_offer offer where end_date < now() order by end_date desc limit 500;
+	"""
+	sql = sql % {}
+	cols, resultset = throw_sql(sql)
+	offer_list = []
+	for row in resultset:
+		offer_list.append([row[0],row[1]])
+	metrics['offer_list'] = offer_list
+	
+	sql = """
+		 select offer.headline "name", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross", avg(transaction.amount)::float "avg_order_amount", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction where item.offer_id = offer.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3; 
+	"""
+	sql = sql % {'offer_id':offer_id}
+	cols, resultset = throw_sql(sql)
+        ROWS = [dict(zip(cols,row)) for row in resultset]	
+	metrics['name'] = None	
+	if len(ROWS) == 0:
+		return render_template("offer_metrics.html", **metrics);
+	metrics['start_date'] = ROWS[0]['start_date']
+	metrics['end_date'] = ROWS[0]['end_date']	
+	metrics['name'] = ROWS[0]['name']
+	metrics['unique_buyers'] = ROWS[0]['unique_buyers']
+	metrics['gross_sales'] = ROWS[0]['gross']
+	metrics['avg_order_amount'] = ROWS[0]['avg_order_amount']
+	metrics['avg_order_qty'] = ROWS[0]['avg_order_qty']
+
+	sql = """
+	select offer.name "offer", payment._polymorphic_identity "ptype", sum(payment.amount)::float "amount" from  core_offer offer, core_transaction transaction, core_payment payment, core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id and transaction.id = payment.transaction_id group by 1,2;
+	"""
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['payments'] = {}
+	for row in ROWS:
+	  metrics['payments'][row['ptype']] = row['amount']
+	sql = """
+	select name "name", total_trans "trans_count", count(account) "users" from (select offer.name "name",  transaction.account_id "account", count(distinct(acct_trans.id)) "total_trans" from core_offer offer, core_transaction transaction left join core_transaction acct_trans on (transaction.account_id = acct_trans.account_id and acct_trans.occurrence <= transaction.occurrence and acct_trans.id != transaction.id), core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id group by 1,2) as cust_behavior group by 1,2;
+	"""
+ 
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['prior_buyers'] = {}
+	metrics['prior_buyers']['0 Purchases'] = 0
+	metrics['prior_buyers']['1 Purchase'] = 0
+	metrics['prior_buyers']['2-5 Purchases'] = 0
+ 	metrics['prior_buyers']['6-10 Purchases'] = 0
+	metrics['prior_buyers']['10+ Purchases'] = 0
+        for row in ROWS:
+          if row['trans_count'] == 0:
+                metrics['prior_buyers']['0 Purchases'] += row['users']
+          if row['trans_count'] == 1:
+		metrics['prior_buyers']['1 Purchase'] += row['users']
+	  if row['trans_count'] > 1 and row['trans_count'] <= 5:
+		metrics['prior_buyers']['2-5 Purchases'] += row['users']
+	  if row['trans_count'] > 5 and row['trans_count'] <= 10:
+		metrics['prior_buyers']['6-10 Purchases'] += row['users']
+	  if row['trans_count'] > 10:
+		metrics['prior_buyers']['10+ Purchases'] += row['users']
+
+        sql = """
+        select name "name", total_trans "trans_count", count(account) "users" from (select offer.name "name",  transaction.account_id "account", count(distinct(acct_trans.id)) "total_trans" from core_offer offer, core_transaction transaction left join core_transaction acct_trans on (transaction.account_id = acct_trans.account_id and acct_trans.occurrence >= transaction.occurrence and acct_trans.id != transaction.id), core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id group by 1,2) as cust_behavior group by 1,2;
+        """
+
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['future_buyers'] = {}
+	metrics['future_buyers']['0 Purchases'] = 0
+        metrics['future_buyers']['1 Purchase'] = 0
+        metrics['future_buyers']['2-5 Purchases'] = 0
+        metrics['future_buyers']['6-10 Purchases'] = 0
+        metrics['future_buyers']['10+ Purchases'] = 0
+        for row in ROWS:
+	  if row['trans_count'] == 0:
+		metrics['future_buyers']['0 Purchases'] += row['users']
+          if row['trans_count'] == 1:
+                metrics['future_buyers']['1 Purchase'] += row['users']
+          if row['trans_count'] > 1 and row['trans_count'] <= 5:
+                metrics['future_buyers']['2-5 Purchases'] += row['users']
+          if row['trans_count'] > 5 and row['trans_count'] <= 10:
+                metrics['future_buyers']['6-10 Purchases'] += row['users']
+          if row['trans_count'] > 10:
+                metrics['future_buyers']['10+ Purchases'] += row['users']
+
+	sql = """
+	select referral.source "source", count(referral.*) "count" from core_referral referral, core_item item where item.transaction_id = referral.transaction_id and item.offer_id='%(offer_id)s' and campaign='Affiliate' and event='offer-purchase' group by 1; 
+	"""
+	sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+	metrics['affiliate_sales'] = ROWS
+
+
+	sql = """
+	select offer.name "name", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross" from core_offer offer, core_item item, core_transaction transaction, core_account account where item.offer_id = offer.id and item.transaction_id = transaction.id and transaction.account_id = account.id and account.date_joined > transaction.occurrence - interval '4 hours' and offer.id = '%(offer_id)s' group by 1;
+	"""
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['new_buyers'] = ROWS[0]['unique_buyers']
+
+	return render_template("offer_metrics.html", **metrics);
+
 
 def offers_detail(offers=None):
 	"""
