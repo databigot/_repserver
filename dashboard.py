@@ -90,7 +90,8 @@ def index():
 		,{'name': 'Offer Metrics Report'		,'url': url_for('offer_metrics',offer_id=1)}
 		,{'name': 'Deal Category Report'		,'url': url_for('dealcats')}
 		,{'name': 'Customer Engagement Dashboard'	,'url': url_for('engagement')}
-		,{'name': 'TIPPR Daily Credit Report'		,'url': url_for('credits_by_date',rdate='2012-01-01')}
+		,{'name': 'Daily Credit Grants Report'		,'url': url_for('credits_granted_by_date',rdate='2012-01-01')}
+		,{'name': 'Monthly Credit Summary Report'	,'url': url_for('credit_summary_by_month',rdate='2012-01-01')}
 		,{'name': 'Sales Report by Agent','url': url_for('agent_sales')}
 		] 
 	return render_template("index.html", REPORTS=reports);
@@ -295,9 +296,13 @@ account_detail = app.route("/account_detail/<id>")(account_detail)
 account_detail = app.route("/account_detail/", methods=['GET','POST'])(account_detail)
 
 
-from reports import credits_by_date
-credits_by_date = app.route("/credits_by_date/<rdate>")(credits_by_date)
-credits_by_date = app.route("/credits_by_date/", methods=['GET','POST'])(credits_by_date)
+from reports import credits_granted_by_date
+credits_granted_by_date = app.route("/credits_granted_by_date/<rdate>")(credits_granted_by_date)
+credits_granted_by_date = app.route("/credits_granted_by_date/", methods=['GET','POST'])(credits_granted_by_date)
+
+from reports import credit_summary_by_month
+credit_summary_by_month = app.route("/credit_summary_by_month/<rdate>")(credit_summary_by_month)
+credit_summary_by_month = app.route("/credit_summary_by_month/", methods=['GET','POST'])(credit_summary_by_month)
 
 from reports import offer_metrics
 offer_metrics = app.route("/offer_metrics/<offer_id>")(offer_metrics)
