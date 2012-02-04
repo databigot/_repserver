@@ -34,7 +34,7 @@ def credit_summary_by_month(rdate='2012-01-01'):
 
 
     """
-    cols, resultset = throw_sql(sql % {'rdate':rdate}    ); ##bind in the input params; and run it.
+    cols, resultset = throw_sql(sql % {'rdate':rdate},DB_PBT    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     for row in ROWS:
 	  referred_params = []
@@ -105,7 +105,7 @@ def credits_granted_by_date(rdate='2012-01-01'):
 		date(credit.activated) = '%(rdate)s'; 
 
     """
-    cols, resultset = throw_sql(sql % {'rdate':rdate}    ); ##bind in the input params; and run it.
+    cols, resultset = throw_sql(sql % {'rdate':rdate}    ,DB_PBT); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     for row in ROWS:
           referrer_params = []
@@ -171,28 +171,28 @@ def account_detail(id='d1f5be0616ba4751a9a1a607c6175504'):
     sql = """
         select transaction.status "status", count(distinct(transaction.id)) "transactions", sum(transaction.amount) "amount", date(min(transaction.occurrence)) "first", date(max(transaction.occurrence)) "last" from core_transaction transaction where transaction.account_id = '%(account)s' group by 1;
     """
-    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    cols, resultset = throw_sql(sql % {'account':id},DB_PBT    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     metrics['details']['transaction_summary'] = ROWS
 
     sql = """
 	select account.*, publisher.name "publisher_name" from core_account account, core_publisher publisher where account.publisher_id = publisher.id and account.id = '%(account)s';
     """
-    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    cols, resultset = throw_sql(sql % {'account':id},DB_PBT    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     metrics['details']['account'] = ROWS[0]
 
     sql = """
         select sum(value) "total_earned" from core_credit where account_id = '%(account)s' and status='activated';
     """
-    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    cols, resultset = throw_sql(sql % {'account':id},DB_PBT    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     metrics['details']['credits_earned'] = ROWS[0]['total_earned']
 
     sql = """
         select sum(value) "total_remaining" from core_credit where account_id = '%(account)s' and status='activated' and id not in (select credit_id from core_creditpayment);
     """
-    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    cols, resultset = throw_sql(sql % {'account':id},DB_PBT    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     metrics['details']['credits_remaining'] = ROWS[0]['total_remaining']
  
@@ -209,14 +209,14 @@ def account_detail(id='d1f5be0616ba4751a9a1a607c6175504'):
             group by 1, transaction.status 
             order by 2 desc;
     """
-    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    cols, resultset = throw_sql(sql % {'account':id},DB_PBT    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     metrics['referrals_table'] = ROWS
 
     sql = """
 	select sharer.account_id "referrer_account", to_date(to_char(referred.date_joined,'MM-YYYY'),'MM-YYYY') "month", count(distinct(referred.id)) "accounts", count(distinct(transaction.id)) "transactions", sum(transaction.amount) "spend", sum(transaction.amount) / count(distinct(referred.id)) "spend_per_acct" from core_invite sharer, core_inviteuse, core_account referred, core_transaction transaction where sharer.account_id = '%(account)s' and invite_id = sharer.id and transaction.account_id = core_inviteuse.account_id and core_inviteuse.account_id = referred.id and transaction.status = 'completed' group by 1,2 order by 1,2;
     """
-    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    cols, resultset = throw_sql(sql % {'account':id},DB_PBT    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     metrics['monthly_referrals_table'] = ROWS
 
@@ -259,7 +259,7 @@ def dealcats(id='test'):
                         group by 1 having count(distinct(channel_id)) = 1) 
             group by 1,2 order by 1 desc;
     """
-    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    cols, resultset = throw_sql(sql % {'account':id},DB_PBT    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     for row in ROWS:
 	params = []
@@ -360,7 +360,7 @@ def agent_sales(yyyymm = None):
 		group by 1,2,offer.upstream_source 
 		order by 1,2 desc;
 	"""
-	cols, resultset = throw_sql(sql  % {'month':yyyymm+'-01'})
+	cols, resultset = throw_sql(sql  % {'month':yyyymm+'-01'}, DB_PBT)
 	ROWS = [dict(zip(cols,row)) for row in resultset]
 	for row in ROWS:
 		params = []
@@ -406,7 +406,7 @@ def offer_metrics(offer_id='1'):
 		select offer.headline "name", offer.id "id" from core_offer offer where end_date < now() order by end_date desc limit 500;
 	"""
 	sql = sql % {}
-	cols, resultset = throw_sql(sql)
+	cols, resultset = throw_sql(sql, DB_PBT)
 	offer_list = []
 	for row in resultset:
 		offer_list.append([row[0],row[1]])
@@ -416,7 +416,7 @@ def offer_metrics(offer_id='1'):
 		 select offer.headline "name", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross", avg(transaction.amount)::float "avg_order_amount", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction where item.offer_id = offer.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3; 
 	"""
 	sql = sql % {'offer_id':offer_id}
-	cols, resultset = throw_sql(sql)
+	cols, resultset = throw_sql(sql, DB_PBT)
         ROWS = [dict(zip(cols,row)) for row in resultset]	
 	metrics['name'] = None	
 	if len(ROWS) == 0:
@@ -433,7 +433,7 @@ def offer_metrics(offer_id='1'):
 	select offer.name "offer", payment._polymorphic_identity "ptype", sum(payment.amount)::float "amount" from  core_offer offer, core_transaction transaction, core_payment payment, core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id and transaction.id = payment.transaction_id group by 1,2;
 	"""
         sql = sql % {'offer_id':offer_id}
-        cols, resultset = throw_sql(sql)
+        cols, resultset = throw_sql(sql, DB_PBT)
         ROWS = [dict(zip(cols,row)) for row in resultset]
         metrics['payments'] = {}
 	for row in ROWS:
@@ -443,7 +443,7 @@ def offer_metrics(offer_id='1'):
 	"""
  
         sql = sql % {'offer_id':offer_id}
-        cols, resultset = throw_sql(sql)
+        cols, resultset = throw_sql(sql, DB_PBT)
         ROWS = [dict(zip(cols,row)) for row in resultset]
         metrics['prior_buyers'] = {}
 	metrics['prior_buyers']['0 Purchases'] = 0
@@ -468,7 +468,7 @@ def offer_metrics(offer_id='1'):
         """
 
         sql = sql % {'offer_id':offer_id}
-        cols, resultset = throw_sql(sql)
+        cols, resultset = throw_sql(sql, DB_PBT)
         ROWS = [dict(zip(cols,row)) for row in resultset]
         metrics['future_buyers'] = {}
 	metrics['future_buyers']['0 Purchases'] = 0
@@ -492,7 +492,7 @@ def offer_metrics(offer_id='1'):
 	select referral.source "source", count(referral.*) "count" from core_referral referral, core_item item where item.transaction_id = referral.transaction_id and item.offer_id='%(offer_id)s' and campaign='Affiliate' and event='offer-purchase' group by 1; 
 	"""
 	sql = sql % {'offer_id':offer_id}
-        cols, resultset = throw_sql(sql)
+        cols, resultset = throw_sql(sql, DB_PBT)
         ROWS = [dict(zip(cols,row)) for row in resultset]
 	metrics['affiliate_sales'] = ROWS
 
@@ -501,7 +501,7 @@ def offer_metrics(offer_id='1'):
 	select offer.name "name", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross" from core_offer offer, core_item item, core_transaction transaction, core_account account where item.offer_id = offer.id and item.transaction_id = transaction.id and transaction.account_id = account.id and account.date_joined > transaction.occurrence - interval '4 hours' and offer.id = '%(offer_id)s' group by 1;
 	"""
         sql = sql % {'offer_id':offer_id}
-        cols, resultset = throw_sql(sql)
+        cols, resultset = throw_sql(sql, DB_PBT)
         ROWS = [dict(zip(cols,row)) for row in resultset]
         metrics['new_buyers'] = ROWS[0]['unique_buyers']
 
@@ -563,7 +563,7 @@ select ag_acc.fullname agent, ad.name merchant, p.name publisher, o.status, o.st
 	#expects order_list to be string,string,string -- not quoted.
 	#todo: add the numerics: voucher#, net, gross, etc.
 	sql = sql % {'offer_list':','.join(offers)}
-	cols, resultset = throw_sql(sql)
+	cols, resultset = throw_sql(sql, DB_PBT)
 	ROWS = [dict(zip(cols,row)) for row in resultset]
         COLS = [#k:field_name           l:title(\n)                     u:formatting            w:width
                {'k':'agent' 	,'l':'agent'         ,'u': None              ,'w': '70px'}
@@ -594,7 +594,7 @@ def engagement(id = 'test'):
 
 #    pub_name = sql_simple_fetchrow("select title from core_publisher where id = '%s';"%id)[0];
 
-	hash_publishers = sql_pull_lookup('select id, title from core_publisher;');
+	hash_publishers = sql_pull_lookup('select id, title from core_publisher;', DB_PBT);
 
 #	pub_name = hash_publishers[id]
 

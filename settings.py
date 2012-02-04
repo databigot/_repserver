@@ -20,15 +20,30 @@ ACCESS_GROUPS = { #use these to whitelist a report to only certain people: !!ple
 
 
 
-
-
 #Basic development settings
 DEVELOPMENT_DEFAULTS = {
-    'DATABASE_HOST': '127.0.0.1',
-    'DATABASE_NAME': 'silos',
-    'DATABASE_PASSWORD': '',
-    'DATABASE_PORT': '',
-    'DATABASE_USER': 'django',
+    #'DATABASES': #add all db connections here, incl. mongo.
+    #TODO: pwd is ignored right now.
+    'DB_PBT': {
+	    'DATABASE_HOST': '127.0.0.1',
+	    'DATABASE_NAME': 'silos',
+	    'DATABASE_PASSWORD': '',
+	    'DATABASE_PORT': '',
+	    'DATABASE_USER': 'django',
+	    },
+    'DB_TOM': {
+	    'DATABASE_HOST': '127.0.0.1',
+	    'DATABASE_NAME': 'silos',
+	    'DATABASE_PASSWORD': '',
+	    'DATABASE_PORT': '',
+	    'DATABASE_USER': 'django',
+	    },
+    'DB_MONGO': {
+	    'DATABASE_HOST': '127.0.0.1',
+	    'DATABASE_NAME': 'test',
+	    'DATABASE_PORT': 27017
+	    },
+#	'default': 'DB_PBT'
     'WEBSERVER_PORT': 10000+UID,
     'WEBSERVER_HOST': '0.0.0.0',
     'DEBUG': True
@@ -37,11 +52,27 @@ DEVELOPMENT_DEFAULTS = {
 
 
 PRODUCTION_DEFAULTS = {
-    'DATABASE_HOST': '127.0.0.1',
-    'DATABASE_NAME': 'silos',
-    'DATABASE_PASSWORD': '',
-    'DATABASE_PORT': '',
-    'DATABASE_USER': 'django',
+#    'DATABASES':  #add all db connections here, incl. mongo.
+    'DB_PBT': {
+         'DATABASE_HOST': '127.0.0.1',
+    	 'DATABASE_NAME': 'silos',
+    	 'DATABASE_PASSWORD': '',
+    	 'DATABASE_PORT': '',
+    	 'DATABASE_USER': 'django',
+    	 },
+    'DB_TOM': {
+         'DATABASE_HOST': '127.0.0.1',
+         'DATABASE_NAME': 'silos',
+         'DATABASE_PASSWORD': '',
+         'DATABASE_PORT': '',
+         'DATABASE_USER': 'django',
+         },
+    'DB_MONGO': {
+	 'DATABASE_HOST': '127.0.0.1',
+	 'DATABASE_NAME': 'test',
+	 'DATABASE_PORT': 27017
+	 },
+#	'default': 'DB_PBT'
     'WEBSERVER_PORT': 80,
     'WEBSERVER_HOST': '0.0.0.0',
     'DEBUG': False
