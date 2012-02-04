@@ -32,11 +32,11 @@ DEVELOPMENT_DEFAULTS = {
 	    'DATABASE_USER': 'django',
 	    },
     'DB_TOM': {
-	    'DATABASE_HOST': '127.0.0.1',
-	    'DATABASE_NAME': 'silos',
+	    'DATABASE_HOST': 'localhost',
+	    'DATABASE_NAME': 'tom',
 	    'DATABASE_PASSWORD': '',
-	    'DATABASE_PORT': '',
-	    'DATABASE_USER': 'django',
+	    'DATABASE_PORT': '6432',
+	    'DATABASE_USER': 'tom',
 	    },
     'DB_MONGO': {
 	    'DATABASE_HOST': '127.0.0.1',
@@ -61,11 +61,11 @@ PRODUCTION_DEFAULTS = {
     	 'DATABASE_USER': 'django',
     	 },
     'DB_TOM': {
-         'DATABASE_HOST': '127.0.0.1',
-         'DATABASE_NAME': 'silos',
+         'DATABASE_HOST': 'localhost',
+         'DATABASE_NAME': 'tom',
          'DATABASE_PASSWORD': '',
-         'DATABASE_PORT': '',
-         'DATABASE_USER': 'django',
+         'DATABASE_PORT': '6432',
+         'DATABASE_USER': 'tom',
          },
     'DB_MONGO': {
 	 'DATABASE_HOST': '127.0.0.1',
