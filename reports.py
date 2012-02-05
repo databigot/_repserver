@@ -403,17 +403,18 @@ def offer_metrics(offer_id='1'):
 	TITLE='OFFER METRICS REPORT'
 	metrics = {} 
 	sql = """
-		select offer.headline "name", offer.id "id" from core_offer offer where end_date < now() order by end_date desc limit 500;
+		select offer.headline "name", offer.id "id", publisher.name, offer.start_date from core_offer offer, core_publisher publisher where offer.end_date < now() and publisher.id = offer.publisher_id order by offer.end_date desc limit 5000;
 	"""
 	sql = sql % {}
 	cols, resultset = throw_sql(sql)
 	offer_list = []
 	for row in resultset:
-		offer_list.append([row[0],row[1]])
+		offer_list.append([row[0] + " - " + str(row[2]) + " ( " + str(row[3]) + " )",row[1]])
+
 	metrics['offer_list'] = offer_list
 	
 	sql = """
-		 select offer.headline "name", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross", avg(transaction.amount)::float "avg_order_amount", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction where item.offer_id = offer.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3; 
+		 select publisher.name "publisher", offer.headline "name", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross", avg(transaction.amount)::float "avg_order_amount", count(distinct(item.id)) "voucher_count", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction, core_publisher publisher where item.offer_id = offer.id and offer.publisher_id = publisher.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3,4; 
 	"""
 	sql = sql % {'offer_id':offer_id}
 	cols, resultset = throw_sql(sql)
@@ -428,6 +429,8 @@ def offer_metrics(offer_id='1'):
 	metrics['gross_sales'] = ROWS[0]['gross']
 	metrics['avg_order_amount'] = ROWS[0]['avg_order_amount']
 	metrics['avg_order_qty'] = ROWS[0]['avg_order_qty']
+	metrics['voucher_count'] = ROWS[0]['voucher_count']
+	metrics['publisher'] = ROWS[0]['publisher']
 
 	sql = """
 	select offer.name "offer", payment._polymorphic_identity "ptype", sum(payment.amount)::float "amount" from  core_offer offer, core_transaction transaction, core_payment payment, core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id and transaction.id = payment.transaction_id group by 1,2;
@@ -496,6 +499,14 @@ def offer_metrics(offer_id='1'):
         ROWS = [dict(zip(cols,row)) for row in resultset]
 	metrics['affiliate_sales'] = ROWS
 
+	sql = """
+ select event "event", campaign "campaign", medium "medium",count(core_referral.*) "referral_count" from core_referral, core_transaction, core_item where core_transaction.id = core_referral.transaction_id and core_item.transaction_id = core_transaction.id and core_item.offer_id = '%(offer_id)s' group by 1,2,3;
+	"""
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['sale_sources'] = ROWS
+
 
 	sql = """
 	select offer.name "name", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross" from core_offer offer, core_item item, core_transaction transaction, core_account account where item.offer_id = offer.id and item.transaction_id = transaction.id and transaction.account_id = account.id and account.date_joined > transaction.occurrence - interval '4 hours' and offer.id = '%(offer_id)s' group by 1;
@@ -504,6 +515,7 @@ def offer_metrics(offer_id='1'):
         cols, resultset = throw_sql(sql)
         ROWS = [dict(zip(cols,row)) for row in resultset]
         metrics['new_buyers'] = ROWS[0]['unique_buyers']
+
 
 	return render_template("offer_metrics.html", **metrics);
 
