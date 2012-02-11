@@ -39,6 +39,10 @@ def gen_skus_wform():
 		SimpleField(		id='sku4',	 default='', label='Sku4:'),
 		SimpleField(		id='sku5',	 default='', label='Sku5:'),
 		SimpleField(		id='sku6',	 default='', label='Sku6:'),
+                SimpleField(            id='sku7',       default='', label='Sku7:'),
+                SimpleField(            id='sku8',       default='', label='Sku8:'),
+                SimpleField(            id='sku9',       default='', label='Sku9:'),
+                SimpleField(            id='sku10',       default='', label='Sku10:'),
     		SimpleIntField(		id='discountautoid_start', default=0,    	label='Discount AutoID Start:'),
     		SimpleIntField( 	id='syncid_start',    default=0,            label='SyncID Start:'),
     		SimpleField(  		id='coupon_name',default="", 	label='Coupon Name:'),
@@ -55,7 +59,7 @@ def gen_skus_wform():
 	sys.stdout = _old
 	return out
 
-def check_params_ok(prefix, quantity, sku, sku2, sku3, sku4, sku5, sku6, discountautoid_start, syncid_start, coupon_name, amount):
+def check_params_ok(prefix, quantity, sku, sku2, sku3, sku4, sku5, sku6, sku7, sku8, sku9, sku10, discountautoid_start, syncid_start, coupon_name, amount):
 	###NOTE: this should return None if all ok, else return a single error string which will be displayed below the form.
 	#TODO: change to a try, except
 	if (not prefix or not quantity or not sku):
@@ -63,7 +67,7 @@ def check_params_ok(prefix, quantity, sku, sku2, sku3, sku4, sku5, sku6, discoun
 	return None 
 
 
-def gen_skus(prefix, quantity, sku, sku2, sku3, sku4, sku5, sku6, discountautoid_start, syncid_start, coupon_name, amount):        
+def gen_skus(prefix, quantity, sku, sku2, sku3, sku4, sku5, sku6, sku7, sku8, sku9, sku10, discountautoid_start, syncid_start, coupon_name, amount):        
     ###DO any sort of validation 
     ### and throw exception if invalid, with the error_text
     print "<hr><br>"
@@ -127,6 +131,19 @@ def gen_skus(prefix, quantity, sku, sku2, sku3, sku4, sku5, sku6, discountautoid
         if len(sku6.strip()) > 1:
             print str(syncid_current) + "," + str(discountautoid_current) + "," + sku6
             syncid_current += 1
+        if len(sku7.strip()) > 1:
+            print str(syncid_current) + "," + str(discountautoid_current) + "," + sku7
+            syncid_current += 1
+        if len(sku8.strip()) > 1:
+            print str(syncid_current) + "," + str(discountautoid_current) + "," + sku8
+            syncid_current += 1
+        if len(sku9.strip()) > 1:
+            print str(syncid_current) + "," + str(discountautoid_current) + "," + sku9
+            syncid_current += 1
+        if len(sku10.strip()) > 1:
+            print str(syncid_current) + "," + str(discountautoid_current) + "," + sku10
+            syncid_current += 1
+
 
         discountautoid_current += 1
 

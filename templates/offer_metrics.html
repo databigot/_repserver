@@ -108,9 +108,11 @@
 {% else %}  
     <center>
 	<h2>Offer detail for {{ name }}</h2>
+	<h2>Publisher: {{publisher}}</h2>
 	<h3>{{start_date}} through {{end_date}}</h3>
     </center>
     <h3>Gross: ${{ '{:.2f}'.format(gross_sales) }}</h3>
+    <h3>Vouchers Sold: {{ voucher_count }}</h3>
     <h3>Unique Buyers: {{ unique_buyers }}</h3>
     <h3>New Buyers (created accounts within 4 hours of purchase): {{new_buyers}} ({{ '{:.2%}'.format(new_buyers/unique_buyers) }} of total)</h3>
     <h3>Avg Order Amount: ${{ '{:.2f}'.format(avg_order_amount) }}</h3>
@@ -190,6 +192,15 @@
 	<tr><td>{{row['source']}}</td><td>{{row['count']}}</td></tr>
     {% endfor %}
     </table>
+
+    <h3>Sources of sales</h3>
+    <table >
+    <th>event</th><th>campaign</th><th>medium</th><th>referral_count</th>
+    {% for row in sale_sources %}
+        <tr><td>{{row['event']}}</td><td>{{row['campaign']}}</td><td>{{row['medium']}}</td><td>{{row['referral_count']}}</td></tr>
+    {% endfor %}
+    </table>
+
 {% endif %}
   </body>
 </html>
