@@ -1,3 +1,4 @@
+{% extends 'base.html' %}
 
 
 {% macro render_me(COLS, ROWS) -%}
@@ -60,31 +61,15 @@
 {% endif %}
 {%- endmacro %}
 
-<html>
-<head>
-<title>Report: {{ TITLE }}</title>
-    <script type="text/javascript">
-/*        var djConfig = {
-            blankGif: '[[ resource('img/dojo-blank') ]]',
-            gfxRenderer: 'canvas,svg,vml',
-            locale: 'en-us',
-            modulePaths: {
-                'dojox.gfx.canvas': '[[ resource('js/dojox.gfx.canvas.js', strip_extension=True) ]]',
-                'dojox.gfx.svg': '[[ resource('js/dojox.gfx.svg.js', strip_extension=True) ]]'
-            },
-            useXDomain: true
-        };
-*/
-    </script>
-    <!--- 
-	<script type="text/javascript" src="[[ resource('js/dojo.js') ]]"></script>
-	--->
+{% block js_libs %}
+{{ super() }}
     <script src="http://ajax.googleapis.com/ajax/libs/dojo/1.7.1/dojo/dojo.js" type="text/javascript"></script>
     <script src="/static/js/utils.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.js"> </script>
+{% endblock js_libs %}
 
-
-
+{% block styles %}
+{{ super() }}
 <link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/dojo/1.7.1/dojo/resources/dojo.css"> 
 <link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/dojo/1.7.1/dojox/grid/resources/Grid.css"> 
 <link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/dojox/grid/resources/tundra/Grid.css">
@@ -139,8 +124,9 @@ tr {
 
 
 </style>
-</head>
-<body>
+{% endblock styles %}
+
+{% block page_content %}
 <br />
 <br />
 
@@ -175,5 +161,4 @@ tr {
 {{ render_me( COLS,ROWS) }}
 <br />
 
-</body>
-</html>
+{% endblock page_content %}

@@ -1,0 +1,60 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv='Content-Type' content="text/html; charset=UTF-8" />
+
+	<title> TIPPR: Reporting and Dashboard Awesomeness, yo! </title>
+{% block styles %}
+
+{% endblock styles %}
+{% block js_libs %}
+
+{% endblock js_libs %}	
+</head>
+
+<body>
+{% block header %}
+	<div id="header-container">
+		<div id="header" width='100%'>
+			<div id='login' style='text-align:right; font-size:10pt;'>Welcome {{ g.user }} <br><a href='/logout'>logout</a></div><br>
+			<div id='top-banner' style='background: none repeat scroll 0 0 #97CC00; height:auto; border-bottom: 3px solid #E5E5E5;'>
+				<div id='logo' style='display:inline; position:fixed;'><img src="/static/imgs/logo.png"> </div>
+				<div id='page-title' style='display: block; text-align: center; padding: 20px; width: 100%; font-size:24pt'>TIPPR REPORTING</div>
+			</div>
+		</div>
+	</div>
+{% endblock header %}
+<div id='page_content_container' style='margin-left:60px; margin-right:20px;'>
+{% block page_content %}
+	<div id="">
+	</div>	
+{% endblock page_content %}
+</div>
+{% block footer %}
+	<div id="footer-container">
+		<div id="footer" width='100%' style='text-align:center'>
+			<hr>
+		<span>
+			copyright 2012 Tippr.
+		</span>
+		</div>
+	</div>
+{% endblock footer %}
+
+{% block javascript %}
+
+{% endblock javascript %}
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
