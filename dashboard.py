@@ -23,7 +23,7 @@ app = Flask(__name__)
 
 @app.context_processor
 def inject_now():
-    return dict(now=datetime.datetime.isoformat(datetime.datetime.now()))
+    return dict(now=datetime.date.strftime(datetime.datetime.now(),'%Y%b%d,%H:%M%p'))
 
 
 #=========================================================
@@ -92,7 +92,8 @@ def index():
 		,{'name': 'Customer Engagement Dashboard'	,'url': url_for('engagement')}
 		,{'name': 'Daily Credit Grants Report'		,'url': url_for('credits_granted_by_date',rdate='2012-01-01')}
 		,{'name': 'Monthly Credit Summary Report'	,'url': url_for('credit_summary_by_month',rdate='2012-01-01')}
-		,{'name': 'Sales Report by Agent','url': url_for('agent_sales')}
+		,{'name': 'Sales Report by Agent'		,'url': url_for('agent_sales')}
+		,{'name': 'Transaction Detail for Offers'	,'url': url_for('txn_detail')}
 		] 
 	return render_template("index.html", REPORTS=reports);
 
@@ -337,7 +338,11 @@ def restrict_to(*whitelist): #
    return decorator
 
 
-
+from reports import txn_detail
+txn_detail = app.route("/txn.<format>/<publisher>")(txn_detail)
+txn_detail = app.route("/txn.<format>")(txn_detail)
+txn_detail = app.route("/txn/<publisher>")(txn_detail)
+txn_detail = app.route("/txn")(txn_detail)
 
 
 
