@@ -331,8 +331,9 @@ def agent_sales(yyyymm = None):
 			,('2011-10','October 2011') 
 			,('2011-11','November 2011') 
 			,('2011-12','December 2011') 
-			,('2012-01','January 2012 - partial month to date')]
-	yyyymm = yyyymm or '2012-01';	
+			,('2012-01','January 2012')
+			,('2012-02','February 2012 - partial month to date')]
+	yyyymm = yyyymm or '2012-02';	
 	SELECTOR = {
 		'list':		pick_month
 		,'current': 	yyyymm
