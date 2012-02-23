@@ -1,7 +1,7 @@
 from sqlhelpers import *
 from flask import Flask, url_for, render_template, render_template_string, g, session, request, redirect, abort
 
-from utils import csv_out, csv_out_simple, json_out
+from utils import csv_out, csv_out_simple, json_out, gjson_out
 
 from utils import cache_report_request, cache_save_dataset, cache_fetch_dataset
 import datetime 
@@ -732,20 +732,20 @@ def txn_detail(format=None, publisher=None, offers=None): #TODO: add month optio
 #	return render_template("simple_tester_report.html", SQL=sql, COLS=cols, ROWS=resultset, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
 
-        COLS = [#k:field_name           l:title(\n)                     u:formatting            w:width  !!added x:example_text!! instead of w
-               {'k':'publisher' 	,'l':'publisher'         ,'u': None             ,'w':'104px' 	,'x': '225besteats'}
-               	,{'k':'promotion_end' 	,'l':'promotion_end'    ,'u': 'date'            ,'w':'99px'		,'x': '01/01/2012'}
-               	,{'k':'category' 	,'l':'category'     	,'u': None             	,'w':'133px'	,'x': 'Health & Medicine'}
-		,{'k':'merchant'	, 'l':'merchant'	,'u': None		,'w':'158px'	,'x': 'Medicine & Anti-Aging Clinic'}
-                ,{'k':'promotion' 	,'l':'promotion'        ,'u': None              ,'w':'258px'	,'x': 'Chemical Peel & Microdermabrasion'}
-               	,{'k':'agent' 		,'l':'agent'   		,'u': None         	,'w':'83px'  	,'x': 'jakob jingle-himer'}
-               	,{'k':'qty' 		,'l':'qty'      	,'u': 'integer'         ,'w':'44px'     	,'x': '999'}
-               	,{'k':'txn_amount' 	,'l':'amount'		,'u': 'currency'        ,'w':'62px'      	,'x': '$10,000'}
-               	,{'k':'credit_amount' 	,'l':'credits'    	,'u': 'currency'        ,'w':'49px'      	,'x': '$10,000'}
-               	,{'k':'name' 		,'l':'user_name'      	,'u': None	        ,'w':'109px'    	,'x': 'jakob jingle-himer'}
-               	,{'k':'email' 		,'l':'email'         	,'u': None	        ,'w':'159px'   	,'x': 'able_baker@a_longaddr.com'}
-               	,{'k':'zipcode' 	,'l':'zipcode'          ,'u': None           	,'w':'53px'		,'x': '94707'}
-               	,{'k':'date_joined' 	,'l':'date_joined'      ,'u': 'date'           	,'w':'82px'		,'x': '01/01/2012'}
+        COLS = [#k:field_name           l:title(\n)             u:formatting   t!new: google-typ     w:width  	!!added x:example_text!! instead of w
+               {'k':'publisher' 	,'l':'publisher'        ,'u': None     ,'t':None	,'w':'104px' 	,'x': '225besteats'}
+               	,{'k':'promotion_end' 	,'l':'promotion_end'    ,'u': 'date'   ,'t':'date'	,'w':'99px'	,'x': '01/01/2012'}
+               	,{'k':'category' 	,'l':'category'     	,'u': None     ,'t':None       	,'w':'133px'	,'x': 'Health & Medicine'}
+		,{'k':'merchant'	, 'l':'merchant'	,'u': None	,'t':None	,'w':'158px'	,'x': 'Medicine & Anti-Aging Clinic'}
+                ,{'k':'promotion' 	,'l':'promotion'        ,'u': None     ,'t':None	,'w':'258px'	,'x': 'Chemical Peel & Microdermabrasion'}
+               	,{'k':'agent' 		,'l':'agent'   		,'u': None     ,'t':None	,'w':'83px'  	,'x': 'jakob jingle-himer'}
+               	,{'k':'qty' 		,'l':'qty'      	,'u': 'integer','t':'number'	,'w':'44px'     ,'x': '999'}
+               	,{'k':'txn_amount' 	,'l':'amount'		,'u': 'currency','t':'number'    ,'w':'62px'      ,'x': '$10,000'}
+               	,{'k':'credit_amount' 	,'l':'credits'    	,'u': 'currency','t':'number'    ,'w':'49px'      ,'x': '$10,000'}
+               	,{'k':'name' 		,'l':'user_name'      	,'u': None	,'t':None        ,'w':'109px'    ,'x': 'jakob jingle-himer'}
+               	,{'k':'email' 		,'l':'email'         	,'u': None	,'t':None        ,'w':'159px'   	,'x': 'able_baker@a_longaddr.com'}
+               	,{'k':'zipcode' 	,'l':'zipcode'          ,'u': None	,'t':None      	,'w':'53px'	,'x': '94707'}
+               	,{'k':'date_joined' 	,'l':'date_joined'      ,'u': 'date'	,'t':'date'    	,'w':'82px'	,'x': '01/01/2012'}
 	]
 
 
@@ -753,6 +753,7 @@ def txn_detail(format=None, publisher=None, offers=None): #TODO: add month optio
 
 	if format == 'json': return json_out(ROWS, COLS, {});
 	if format == 'csv': return csv_out(ROWS, COLS, {'REPORTSLUG':'TXN-DET-RPT'});
+	if format == 'gjson': return gjson_out(ROWS, COLS, {});
 
 	return render_template("report2.html", SQL=build_sql, COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 

@@ -71,9 +71,38 @@ def json_out(ROWS, COLS, CONTEXT):
 	return response
 
 
-
-#def gjson_out(ROWS, COLS):
+def gjson_out(ROWS, COLS, CONTEXT):
 #	cols = [{id: 'k', label:'l', type:'' 
+	out = "{"
+	out += "\n\tcols: [\n"
+	
+#	cols:
+#		id: x, label: y, type: s
+
+	for col in COLS:
+		out += "\t\t{label: '%s', type: '%s'},\n" % (col['l'], (col['t'] or 'string'))
+	
+	out += "\t    ],"	
+
+	out += "\n\trows: ["
+	for row in ROWS:
+		out += "\n\t\t{c:["
+		for col in COLS:
+			j = row[col['k']]
+#			if col['t'] =='date':
+#				j = 'new Date(%y, %m, %d)'%(j.year, j.month, j.day)
+#			elif col['t'] =='decimal':
+#				j = ...
+
+			out += "{v: '%s'},"% j
+		out += "]}"
+	out += "\n\t    ]"
+	out += "}"
+	response = Response(status=200, mimetype='application/json', content_type='application/json')
+	response.data = out
+	return response
+
+
 
 def cache_report_request(context):
 	pass
