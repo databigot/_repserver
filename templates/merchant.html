@@ -38,12 +38,13 @@
       dataTable.addColumn( { type: 'string', label: 'Merchant' } );
       dataTable.addColumn( { type: 'string', label: 'Headline' } );
       dataTable.addColumn( { type: 'string', label: 'City' } );
+      dataTable.addColumn( { type: 'string', label: 'Channel' } );
       dataTable.addColumn( { type: 'number', label: '# Sold' } );
       dataTable.addColumn( { type: 'number', label: 'Gross', pattern: '#,##0.00' } );
 
       // add rows
       {% for r in rows %}
-      dataTable.addRow( [ new Date("{{ r.end_date.strftime( '%m/%d/%y' ) }}"), "{{ r.name | safe }}", {v:"{{ r.headline | safe }}", f:"{{ r.headline | safe }}"}, "{{ r.city }}", {{ r.count }}, {{ r.sum }} ] );
+      dataTable.addRow( [ new Date("{{ r.end_date.strftime( '%m/%d/%y' ) }}"), "{{ r.name | safe }}", {v:"{{ r.headline | safe }}", f:"{{ r.headline | safe }}"}, "{{ r.city }}", "{{ r.channame }}", {{ r.count }}, {{ r.sum }} ] );
       {% endfor %}
 
       // draw the actual table

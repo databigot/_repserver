@@ -168,23 +168,23 @@ def get_offers(sql):
 
 purchase_sql = ( "select o.id "
                  "     , o.headline"
-                 "     , date(t.occurrence)"
+                 "     , date(t.occurrence at time zone 'PST')"
                  "     , count(i.id)"
                  "  from core_offer o, core_item i, core_transaction t"
                  " where (i.offer_id = o.id)"
                  "   and (i.transaction_id = t.id)"
                  "   and (t.status in ('completed','pending'))"
-                 "   and (t.occurrence > current_date-7)"
-                 " group by o.id, headline, date(occurrence)"
+                 "   and ((t.occurrence at time zone 'PST') > date(now() at time zone 'PST')-7)"
+                 " group by o.id, headline, date(occurrence at time zone 'PST')"
                  " order by o.id, date" )
 
-purchase30_sql = ( "select date(occurrence), count(i.id) "
+purchase30_sql = ( "select date(occurrence at time zone 'PST'), count(i.id) "
                    "  from core_item i, core_transaction t"
                    " where (i.transaction_id = t.id)"
-                   "   and (date(occurrence) > current_date-30)"
+                   "   and (date(occurrence at time zone 'PST') > date(now() at time zone 'PST')-30)"
                    "   and (t.status in ('completed', 'pending'))" 
-                   " group by date(occurrence)"
-                   " order by date(occurrence)" )
+                   " group by date(occurrence at time zone 'PST')"
+                   " order by date(occurrence at time zone 'PST')" )
 
 @app.route("/purchases/")
 def purchasereport():
@@ -212,8 +212,8 @@ def purchasereport():
     context["names"] = names
     context["days"] = days
     context["offers"] = offers
-    context["today"] = date.today()
-    context["yesterday"] = date.today() - timedelta(days=1)
+    context["today"] = (datetime.datetime.now() - timedelta(seconds=8*60*60)).date();
+    context["yesterday"] = context["today"] - timedelta(days=1)
 
     return render_template('purchases.html', **context )
 
@@ -239,7 +239,7 @@ def execute_sql( sql, params=None ):
         return None
 
 ##TODO:break this out to reports.py?
-merchant_sql = ( "select o.id offerid, p.primary_channel_id channelid, o.end_date, ad.name, o.headline, g.title city, count(i.id), sum(i.amount)"
+merchant_sql = ( "select o.id offerid, p.primary_channel_id channelid, o.end_date, ad.name, o.headline, g.title city, count(i.id), sum(i.amount), c.name channame, p.name pubname"
   		 "   from core_advertiser ad, core_offer o, core_publisher p, core_channel c, core_geography g, core_item i, core_transaction t"
 		 "  where (o.advertiser_id = ad.id)"
 		 "    and (o.publisher_id = p.id)"
@@ -249,7 +249,7 @@ merchant_sql = ( "select o.id offerid, p.primary_channel_id channelid, o.end_dat
 		 "    and (i.transaction_id = t.id)"
 		 "    and (t.status in ('completed','pending'))"
 		 "    and ((ad.name ilike %s) or (o.headline ilike %s))"
-		 "  group by o.id, p.primary_channel_id, o.end_date, ad.name, o.headline, city"
+		 "  group by o.id, p.primary_channel_id, o.end_date, ad.name, o.headline, city, c.name, p.name"
 		 "  order by end_date desc;" )
 
 @app.route("/merchant")
