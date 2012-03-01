@@ -403,7 +403,7 @@ def offer_metrics(offer_id='1'):
 	TITLE='OFFER METRICS REPORT'
 	metrics = {} 
 	sql = """
-		select offer.headline "name", offer.id "id", publisher.name, offer.start_date from core_offer offer, core_publisher publisher where offer.end_date < now() and publisher.id = offer.publisher_id order by offer.end_date desc limit 5000;
+		select offer.headline "name", offer.id "id", publisher.name, offer.start_date from core_offer offer, core_publisher publisher where offer.status in ('published','closed') and publisher.id = offer.publisher_id order by offer.end_date desc limit 5000;
 	"""
 	sql = sql % {}
 	cols, resultset = throw_sql(sql, DB_PBT)
