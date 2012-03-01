@@ -1,0 +1,61 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.7.1.min.js"></script>
+    <script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jquery.validate/1.9/jquery.validate.js"></script>
+    <title>
+      Upload a new codeset
+    </title>
+    <style type="text/css">
+    body, html {
+        font-family: arial;
+        font-size: 10pt;
+    }
+
+    h1 {
+	font-family: arial;
+        font-size:24pt;
+        margin-bottom:0pt;
+    }
+
+    h2 {
+       font-family: arial;
+       font-size: 16pt;
+       margin-top:8pt;
+       margin-bottom:10pt;
+    }
+    </style>
+
+    <script>
+        $(document).ready(function(){
+            $("#form").validate();
+        });
+    </script>
+  
+
+  </head>
+
+  <body>
+    <center>
+	<h1>Upload a code set</h1>
+    </center>
+    <p /><br /><p />
+    <form id="form" method=POST enctype=multipart/form-data action="{{ url_for('upload') }}">
+        <table>
+        <tr><td><b>Name of merchant:</b></td><td><input type=text name=merchant size=60 class="required"></td></tr>
+        <tr><td><b>Expiry date for codes (YYYY-MM-DD):</b></td><td><input type=text name=date size=12 class="required dateISO"></td></tr>
+        <tr><td><b>System for use:</b></td><td><input type="radio" name="system" value="PBT" /> PBT&nbsp;&nbsp;&nbsp;
+                <input type="radio" name="system" value="TOM" /> TOM&nbsp;&nbsp;&nbsp;
+                <input type="radio" name="system" value="Other" checked /> Other (BrandLava, etc.)</td></tr>
+	<tr><td><b>System ID:</b></td><td><input type=text name=sysid size=30></td></tr>
+	<tr><td>&nbsp;</td><td></td></tr>
+	<tr><td><b>Additional Information:</b></td><td><input type=text name=comments size=60></td></tr>
+	<tr><td>&nbsp;</td><td></td></tr>
+	<tr><td>S<b>elect a .csv or .txt file to upload:</b></td><td><input type=file name=codes class="required"></td></tr>
+        </table>
+	<p />
+	<input type="submit" value="Submit" />
+    </form>
+  </body>
+</html>

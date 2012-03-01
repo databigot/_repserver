@@ -12,6 +12,9 @@
 <tbody>
 {% for o in rows %}
 <tr class="row">
+	{% for c in cols %}
+	<td class="{{ o[c] }}">{{ o[c] }}</td>
+	{% endfor %}
 	{% for cell in o %}
 	<td class="{{ cell }}">{{ cell }}</td>
 	{% endfor %}
@@ -72,8 +75,12 @@ div.offerlist {
 </style>
 </head>
 <body>
-<h2>{{ report_title }}</h2>
-{{ render_list( cols,rows) }}
+<h2>TESTER</h2>
+<h3>{{ TITLE }}</h3>
+<h3>SQL</h3>
+<div>{{ SQL }}</div>
+
+{{ render_list( COLS,ROWS) }}
 <br />
 
 </body>
