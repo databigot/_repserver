@@ -5,6 +5,7 @@ from flaskext.openid import OpenID, COMMON_PROVIDERS
 import datetime
 import os
 import sys
+from pymongo import Connection, objectid
 
 import csv
 
@@ -414,6 +415,100 @@ def cctrans():
     context["perip"] = suspicious
 
     return render_template( 'cctrans.html', **context )
+
+#------------------------------------------------------------------------------
+
+@app.route("/upload_codeset/")
+def upload_codeset():
+    return render_template( 'upload_new_codeset.html' )
+
+@app.route("/action/", methods=["POST"] )
+def action():
+    act = request.values["action"]
+    obtype = request.values["type"]
+    oid = objectid.ObjectId( request.values["id"] )
+
+    status = "haven't tried anything"
+
+    conn = Connection("mongodb://code_store:fr33$tuff@master.dw.tippr.com/code_store")
+
+    if (obtype == "codeset"):
+	if (act== "activate"):
+	    conn.code_store.codes.update( { "codeset" : oid }, {"$set" : {"activated":True}}, multi=True  )
+            conn.code_store.codesets.update( { "_id" : oid }, {"$set": {"activated":True}} )
+            status = "Succeeded: that codeset is activated"
+        elif (act == "delete"):
+            conn.code_store.codes.remove( { "codeset" : oid } )
+            conn.code_store.codesets.remove( { "_id" : oid } )            
+            status = "Succeeded: that codeset is toast"
+        else:
+            status = "Failed: I don't know how to %s a %s" % (act, obtype)
+    else:
+        status = "Failed: I have no idea what a %s is." % obtype
+
+
+    context = { "action" : act,
+                "obtype" : obtype,
+                "id" : request.values["id"],
+                "status" : status }
+
+    return render_template( 'action.html', **context )
+
+
+@app.route("/confirm_codeset/", methods=['POST'])
+def upload():
+    codes =  request.files["codes"].getvalue().split("\n")
+
+
+    # Write the codeset
+    conn = Connection("mongodb://code_store:fr33$tuff@master.dw.tippr.com/code_store")
+    db = conn.code_store
+    coll = conn.code_store.codes
+   
+
+    merch = request.values["merchant"].lower().replace(" ","-").replace(".", "").replace(",","").replace("&","").replace("--", "-")
+    dt = datetime.date.today().strftime("%y-%m-%d")
+    done = False
+    tries = 1
+    while not done:
+        if (tries == 1):
+            name = "%s-%s" % (merch,dt)
+        else:
+            name = "%s-%s-%s" % (merch, dt, tries)
+        found = conn.code_store.codesets.find_one( { "name" : name } )
+        if found == None:
+            done = True
+        else:
+            tries += 1
+
+	
+    codeset = { "_id" : objectid.ObjectId(),
+		"merchant" : request.values["merchant"],
+                "related_system": { "system" : request.values["system"], "id" : request.values["sysid"] },
+                "name" : name,
+		"info" : request.values["comments"],
+                "activated" : False }
+
+    db.codesets.save( codeset )
+    print "Got this far at least"
+
+    code_docs = [ { "code": c, "codeset" : codeset["_id"], "activated" : False, "expires" : request.values["date"] } for c in codes ]
+    db.codes.insert(code_docs)
+
+    # render the page
+    context = { "merchant" : request.values["merchant"],
+                "expdate" : request.values["date"],
+                "system" : request.values["system"],
+		"comments" : request.values["comments"],
+		"name" : name,
+		"samples" : "<br />".join(codes[:5]),
+                "codeset_id" : str(codeset["_id"])  }
+
+    return render_template('confirm_codeset.html', **context)
+
+
+
+
 
 
 def md5( s ):
