@@ -5,8 +5,10 @@ from pymongo import Connection
 
 def db_connectstring(dbName=None):
     (user,dbname,host,port) = db_params(dbName)
-    return "dbname='%s' user='%s' host='%s'"% (
-	dbname, user, host )
+    print "Connecting to: dbname='%s' user='%s' host='%s', port='%s'"% ( dbname, user, host,port )
+
+    return "dbname='%s' user='%s' host='%s' port='%s'"% (
+	dbname, user, host,port )
 
 def db_params(dbName=None):
 	dbName=dbName or DB_PBT

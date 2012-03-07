@@ -9,6 +9,42 @@ import datetime
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
+def cumulative_tom_sales_by_site(status='assigned'):
+    status_in = request.args.get('status')
+    if status_in:
+        status = status_in 
+
+    sql = """
+select site.name "site", voucher.status "status", count(voucher.*) "vouchers" from marketplace_site site, marketplace_voucher voucher where voucher.site_id = site.id group by 1,2 having count(voucher.*) > 1 and voucher.status = '%(status)s' order by 3 desc;
+
+    """
+    cols, resultset = throw_sql(sql % {'status':status},DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'site'  			,'l': 'Site Name'    		,'u': None            	,'w': '200px'}
+        ,{'k':'status'			,'l': 'Voucher Status'		,'u': None     		,'w':'80px'}
+        ,{'k':'vouchers'                ,'l': 'Vouchers Sold/Assigned'  ,'u': 'integer'		,'w': '150px'}
+
+    ]
+
+    context = {};
+    TITLE='CUMULATIVE TOM VOUCHERS SALES BY SITE NAME (ALL VOUCHERS THAT HAVE NOT BEEN RETURNED/CANCELLED)'; SUBTITLE= '';
+    searchform = """
+        <form method='POST' action='%s'> <!--- target is me -->
+            <p><label id='search_label' for='status_input'><span>Date: </span></label>
+            <input id='status_input' name='status' value='%s'>
+            <button type='submit'>Search</button></p>
+        </form>
+    """%('/cumulative_tom_sales_by_site/',status) #note: hardcoded url!
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='tom_cumulative_vouchers-v1');
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+
+
 
 
 def credit_summary_by_month(rdate='2012-01-01'):
