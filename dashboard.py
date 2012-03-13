@@ -315,6 +315,10 @@ from reports import offer_metrics
 offer_metrics = app.route("/offer_metrics/<offer_id>")(offer_metrics)
 offer_metrics = app.route("/offer_metrics/", methods=['GET','POST'])(offer_metrics)
 
+from reports import tom_breakdown
+tom_breakdown = app.route("/tom_breakdown/<offer_id>")(tom_breakdown)
+tom_breakdown = app.route("/tom_breakdown/", methods=['GET','POST'])(tom_breakdown)
+
 from reports import dealcats
 dealcats = app.route("/pubreps/dealcats/<id>")(dealcats)
 dealcats = app.route("/pubreps/dealcats", methods=['GET','POST'])(dealcats)

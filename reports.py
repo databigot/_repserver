@@ -432,6 +432,68 @@ def agent_sales(yyyymm = None):
     	else: #assume format == 'grid':
 		return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, #SUBTITLE=SUBTITLE, 
 			SELECTOR=SELECTOR);
+
+def tom_breakdown(offer_id='1'):
+        """
+                Show detailed metrics on a specific offer
+        """
+
+        offer_in = request.args.get('offer_id')
+        if offer_in:
+           offer_id = offer_in
+
+
+        TITLE='TOM BREAKDOWN REPORT'
+        metrics = {}
+        sql = """
+                select offer.name "name", offer.id "id", offer.available_start_date, offer.available_end_date from marketplace_offer offer where offer.status NOT in ('draft','archived') order by offer.available_start_date desc limit 5000;
+        """
+        sql = sql % {}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        offer_list = []
+        for row in resultset:
+                offer_list.append([row[0] + " - (" + str(row[2]) + " - " + str(row[3]) + ")",row[1]])
+
+        metrics['offer_list'] = offer_list
+
+        sql = """
+                 select product.id "product", agency.name "agency", offer.headline "headline", advertiser.name "advertiser", offer.available_start_date, offer.available_end_date, offer.processing_fee_percentage, offer.marketplace_commission, product.title, product.price, product.ask_price, product.marketplace_ask, product.advertiser_return from marketplace_product product, marketplace_agency agency, marketplace_offer offer, marketplace_advertiser advertiser where offer.agency_id = agency.id and offer.id = product.offer_id and advertiser.id = offer.advertiser_id and offer.id = '%(offer_id)s';
+        """
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['name'] = None
+        if len(ROWS) == 0:
+                return render_template("tom_breakdown.html", **metrics);
+        metrics['available_start_date'] = ROWS[0]['available_start_date']
+        metrics['available_end_date'] = ROWS[0]['available_end_date']
+        metrics['headline'] = ROWS[0]['headline']
+        metrics['advertiser'] = ROWS[0]['advertiser']
+        metrics['processing_fee_percentage'] = ROWS[0]['processing_fee_percentage']
+        metrics['marketplace_commission'] = ROWS[0]['marketplace_commission']
+	metrics['offer_products'] = {}
+	for row in ROWS:
+	  metrics['offer_products'][row['product']] = {}
+          metrics['offer_products'][row['product']]['title'] = row['title']
+	  metrics['offer_products'][row['product']]['product_price'] = row['price']
+	  metrics['offer_products'][row['product']]['product_ask_price'] = row['ask_price']
+	  metrics['offer_products'][row['product']]['product_marketplace_ask'] = row['marketplace_ask']
+	  metrics['offer_products'][row['product']]['advertiser_return'] = row['advertiser_return']	
+
+
+        sql = """
+	select promotion.id, publisher.name, promotion.start_date, promotion.end_date, promotion.status, product.title, inventory.maximum_quantity, inventory.remaining_quantity,  inventory.bid_price, inventory.marketplace_bid, inventory.bid_price - inventory.marketplace_bid "tom_fee" from marketplace_product product, marketplace_promotion promotion, marketplace_promotioninventory inventory, marketplace_publisher publisher where promotion.id = inventory.promotion_id and promotion.publisher_id = publisher.id and product.id = inventory.product_id and promotion.offer_id =  '%(offer_id)s'; 
+	"""
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['promotions'] = ROWS
+
+
+
+        return render_template("tom_breakdown.html", **metrics);
+
+
 def offer_metrics(offer_id='1'):
 	"""
 		Show detailed metrics on a specific offer
