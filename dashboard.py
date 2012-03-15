@@ -96,6 +96,7 @@ def index():
 		,{'name': 'Sales Report by Agent'		,'url': url_for('agent_sales')}
 		,{'name': 'Transaction Detail for Offers'	,'url': url_for('txn_detail')}
 		,{'name': 'TOM voucher sales by site' 		,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
+		,{'name': 'TOM local inventory levels'		,'url': url_for('tom_local_inventory',status='approved')}
 		] 
 	return render_template("index.html", REPORTS=reports);
 
@@ -302,6 +303,9 @@ from reports import cumulative_tom_sales_by_site
 cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/<status>")(cumulative_tom_sales_by_site)
 cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/", methods=['GET','POST'])(cumulative_tom_sales_by_site)
 
+from reports import tom_local_inventory
+tom_local_inventory = app.route("/tom_local_inventory/<status>")(tom_local_inventory)
+tom_local_inventory = app.route("/tom_local_inventory/", methods=['GET','POST'])(tom_local_inventory)
 
 from reports import credits_granted_by_date
 credits_granted_by_date = app.route("/credits_granted_by_date/<rdate>")(credits_granted_by_date)

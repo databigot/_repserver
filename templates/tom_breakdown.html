@@ -130,13 +130,13 @@
     <h3 class='section-head'>Promotions</h3>
     <div class='section-content'>
     <table >
-    <th>Promotion</th><th>Publisher</th><th>Start</th><th>End</th><th>Status</th><th>Product</th><th>Total Inventory</th><th>Remaining Inventory</th><th>Sold Inventory</th><th>Bid (Publisher Cost)</th><th>Marketplace Bid (Agency Take)</th><th>TOM Fee</th>
+    <th>Promotion</th><th>Publisher</th><th>Start</th><th>End</th><th>Status</th><th>Product</th><th>Total Inventory</th><th>Sold Inventory</th><th>Bid (Publisher Cost)</th><th>Marketplace Bid (Agency Take)</th><th>TOM Fee</th>
     {% for pr in promotions %}
 
-    <tr><td>{{pr['id']}}</td><td>{{ pr['name'] }}</td><td>{{ pr['start_date'] }}</td>
+    <tr><td>{{pr['id']}}</td><td>{{ pr['publisher_name'] }}</td><td>{{ pr['start_date'] }}</td>
     <td>{{ pr['end_date'] }}</td><td>{{pr['status'] }}</td>
     <td>{{ pr['title'] }}</td><td>{{pr['maximum_quantity']}}</td>
-    <td>{{ pr['remaining_quantity'] }}</td><td>unknown</td>
+    <td>{{ pr['total_sold'] }}</td>
     <td>{{ pr['bid_price'] }}</td><td>{{ pr['marketplace_bid'] }}</td>
     <td>{{ pr['tom_fee']}}</td></tr>
     {% endfor %}

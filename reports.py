@@ -43,6 +43,40 @@ select site.name "site", voucher.status "status", count(voucher.*) "vouchers" fr
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
+def tom_local_inventory(status='approved'):
+    status_in = request.args.get('status')
+    if status_in:
+        status = status_in
+
+    sql = """
+ select market.name "market", offer.status "current_status", to_char(date(date_trunc('month', offer.available_end_date)), 'YYYY-MM') "expiration_month", count(offer.*) "non-national_offers" from marketplace_market market, marketplace_offer offer, marketplace_offer_markets offermarkets where offermarkets.offer_id = offer.id and offermarkets.market_id = market.id and offer.status = '%(status)s' and offer.available_end_date > now() and offer.id not in (select offer_id from marketplace_offer_markets where market_id = 'f3413ab5b96611e09a38c42c033b32fa') and offer.private_offer = 'f' group by 1,2,3 order by 1,3;
+
+    """
+    cols, resultset = throw_sql(sql % {'status':status},DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'market'                     ,'l': 'TOM Market'               ,'u': None              ,'w': '200px'}
+        ,{'k':'current_status'                  ,'l': 'Offer Status'          ,'u': None              ,'w':'100px'}
+	,{'k':'expiration_month'	,'l': 'Expiration Month'	,'u': None 		,'w': '100px'}
+        ,{'k':'non-national_offers'                ,'l': 'Non-National Offer Count'  ,'u': 'integer'         ,'w': '150px'}
+
+    ]
+
+    context = {};
+    TITLE='TOM LOCAL INVENTORY LEVELS (non national offers, in approved status, with private_offer set to false)'; SUBTITLE= '';
+    searchform = """
+        <form method='POST' action='%s'> <!--- target is me -->
+            <p><label id='search_label' for='status_input'><span>Date: </span></label>
+            <input id='status_input' name='status' value='%s'>
+            <button type='submit'>Search</button></p>
+        </form>
+    """%('/cumulative_tom_sales_by_site/',status) #note: hardcoded url!
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='tom_local_inventory-v1');
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
 
 
@@ -464,7 +498,8 @@ def tom_breakdown(offer_id='1'):
         ROWS = [dict(zip(cols,row)) for row in resultset]
         metrics['name'] = None
         if len(ROWS) == 0:
-                return render_template("tom_breakdown.html", **metrics);
+                metrics['offer_products'] = {}
+		return render_template("tom_breakdown.html", **metrics);
         metrics['available_start_date'] = ROWS[0]['available_start_date']
         metrics['available_end_date'] = ROWS[0]['available_end_date']
         metrics['headline'] = ROWS[0]['headline']
@@ -482,7 +517,7 @@ def tom_breakdown(offer_id='1'):
 
 
         sql = """
-	select promotion.id, publisher.name, promotion.start_date, promotion.end_date, promotion.status, product.title, inventory.maximum_quantity, inventory.remaining_quantity,  inventory.bid_price, inventory.marketplace_bid, inventory.bid_price - inventory.marketplace_bid "tom_fee" from marketplace_product product, marketplace_promotion promotion, marketplace_promotioninventory inventory, marketplace_publisher publisher where promotion.id = inventory.promotion_id and promotion.publisher_id = publisher.id and product.id = inventory.product_id and promotion.offer_id =  '%(offer_id)s'; 
+	select promotion.id, publisher.name "publisher_name", promotion.start_date, promotion.end_date, promotion.status, product.title, inventory.maximum_quantity, inventory.bid_price, inventory.marketplace_bid, inventory.bid_price - inventory.marketplace_bid "tom_fee", count(voucher.*) "total_sold" from marketplace_product product, marketplace_promotion promotion, marketplace_promotioninventory inventory, marketplace_publisher publisher, marketplace_voucher voucher where promotion.id = inventory.promotion_id and voucher.product_id = inventory.id and promotion.publisher_id = publisher.id and product.id = inventory.product_id and promotion.offer_id =  '%(offer_id)s' group by 1,2,3,4,5,6,7,8,9,10; 
 	"""
         sql = sql % {'offer_id':offer_id}
         cols, resultset = throw_sql(sql, DB_TOM)
