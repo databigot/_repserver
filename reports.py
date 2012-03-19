@@ -9,6 +9,98 @@ import datetime
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
+def hasoffers_transaction_detail(publisher_id=1,month_start='2012-03-01',publisher='frugaling'):
+      #pull all the transactions for a given publisher and given month	
+        
+      publisher_in = request.args.get('publisher')
+      if publisher_in:
+          publisher = publisher_in
+
+      month_start_in = request.args.get('month_start')
+      if month_start_in:
+	  month_start = month_start_in
+
+
+      sql = """
+
+select referral.transaction_id "transaction_id", referral.providerid "hasoffers_transaction_id", referral.source "affiliate",(transaction.occurrence at time zone 'pst')::varchar  "tippr_timestamp", transaction.status "tippr_status", transaction.amount::varchar "tippr_amount"  from core_referral referral, core_publisher publisher, core_transaction transaction where date_trunc('month', date(referral.occurrence at time zone 'pst')) = '%(month_start)s' and referral.event='offer-purchase' and referral.provider='hasoffers' and transaction.id = referral.transaction_id and publisher.id = transaction.publisher_id and publisher.name = '%(publisher)s' order by transaction.occurrence;
+
+      """
+      cols, resultset = throw_sql(sql % {'month_start':month_start,'publisher':publisher},DB_PBT    ); ##bind in the input p
+      ROWS = [dict(zip(cols,row)) for row in resultset]
+
+      for row in ROWS:
+          test = 1
+	  #row['share_credits_granted'] = {'linkto':url_for('credits_granted_by_date'), 'params':referred_params, 'show':'$ ' + str(int(row['share_credits_granted']))}
+
+
+      COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'transaction_id'           	,'l': 'Tippr Transaction ID'            ,'u': None              ,'w': '200px'}
+        ,{'k':'hasoffers_transaction_id'        ,'l': 'HasOffers Transaction ID'        ,'u': None              ,'w':'200px'}
+        ,{'k':'affiliate'                	,'l': 'Affiliate'  			,'u': None     		,'w': '150px'}
+	,{'k':'tippr_timestamp'			,'l': 'Tippr Timestamp'			,'u': 'date'	,'w':'200px'}
+	,{'k':'tippr_status'			,'l': 'Tippr Status'			,'u': None		,'w':'200px'}
+	,{'k':'tippr_amount'			,'l': 'Tippr Amount'			,'u': None		,'w':'200px'}
+
+      ]
+
+
+      if 0:
+   	for transaction_id in transactions:
+           # MAKE SURE THERE IS A PROVIDER ID FOR THE TRANSACTION AND THAT IT IS NOT NULL/EMPTY
+
+	   url = "https://api.hasoffers.com/Api"
+	   url = url + "?Format=json"
+	   url = url + "&Target=Report"
+	   url = url + "&Method=getConversions"
+	   url = url + "&Service=HasOffers"
+	   url = url + "&Version=2"
+	   url = url + "&NetworkId=tippr"
+	   url = url + "&NetworkToken=NETfolm5KpltOeugIlw7JvCjX6Rlq9"
+	   url = url + "&fields[]=Stat.revenue"
+	   url = url + "&fields[]=Affiliate.company"
+	   url = url + "&fields[]=Advertiser.company"
+	   url = url + "&fields[]=Stat.source"
+	   url = url + "&fields[]=Stat.affiliate_info1"
+	   url = url + "&fields[]=Stat.affiliate_info2"
+	   url = url + "&fields[]=Stat.affiliate_info3"
+	   url = url + "&fields[]=Stat.affiliate_info4"
+	   url = url + "&fields[]=Stat.affiliate_info5"
+	   url = url + "&fields[]=Stat.refer"
+	   url = url + "&fields[]=Stat.datetime"
+	   url = url + "&fields[]=Stat.ad_id"
+	   url = url + "&filters[Stat.ad_id][conditional]=EQUAL_TO"
+	   url = url + "&filters[Stat.ad_id][values]=" + str(transaction_id)
+
+
+	   f = urllib.urlopen(url)
+	   json_response  = f.read()
+	   try:
+		decoded_json = json.loads(json_response)
+	   except:
+		print "Cannot decode the json object"
+      context = {};
+      TITLE='HASOFFERS AFFILIATE TRANSACTIONS BY PUBLISHER & MONTH'; SUBTITLE= '';
+      searchform = """
+        <form method='POST' action='%s'> <!--- target is me -->
+            <p><label id='search_label' for='status_input'><span>Month Start: </span></label>
+            <input id='month_start_input' name='month_start' value='%s'>
+            <button type='submit'>Search</button></p>
+        </form>
+      """%('/hasoffers_transaction-detail/',month_start) #note: hardcoded url!
+
+      format = request.args.get('format','grid');
+      if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='hasoffers_detail-v1');
+      else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+
+      # WE ALLOW THE REFERRAL TIMESTAMP AND TRANSACTION TIMESTAMP TO DIFFER BY UP TO ONE DAY
+
+
+
+
 def cumulative_tom_sales_by_site(status='assigned'):
     status_in = request.args.get('status')
     if status_in:
