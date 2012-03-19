@@ -97,6 +97,7 @@ def index():
 		,{'name': 'Transaction Detail for Offers'	,'url': url_for('txn_detail')}
 		,{'name': 'TOM voucher sales by site' 		,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
 		,{'name': 'TOM local inventory levels'		,'url': url_for('tom_local_inventory',status='approved')}
+		,{'name': 'Hasoffers transaction detail by publisher/date', 'url': url_for('hasoffers_transaction_detail',month_start='2012-03-01',publisher='frugaling')}
 		] 
 	return render_template("index.html", REPORTS=reports);
 
@@ -322,6 +323,9 @@ offer_metrics = app.route("/offer_metrics/", methods=['GET','POST'])(offer_metri
 from reports import tom_breakdown
 tom_breakdown = app.route("/tom_breakdown/<offer_id>")(tom_breakdown)
 tom_breakdown = app.route("/tom_breakdown/", methods=['GET','POST'])(tom_breakdown)
+
+from reports import hasoffers_transaction_detail
+hasoffers_transaction_detail = app.route("/hasoffers_transaction_detail/", methods=['GET','POST'])(hasoffers_transaction_detail)
 
 from reports import dealcats
 dealcats = app.route("/pubreps/dealcats/<id>")(dealcats)

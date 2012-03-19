@@ -10,6 +10,7 @@ import datetime
 #import csv
 #from cStringIO import StringIO
 def hasoffers_transaction_detail(publisher_id=1,month_start='2012-03-01',publisher='frugaling'):
+      import urllib
       #pull all the transactions for a given publisher and given month	
         
       publisher_in = request.args.get('publisher')
@@ -23,7 +24,7 @@ def hasoffers_transaction_detail(publisher_id=1,month_start='2012-03-01',publish
 
       sql = """
 
-select referral.transaction_id "transaction_id", referral.providerid "hasoffers_transaction_id", referral.source "affiliate",(transaction.occurrence at time zone 'pst')::varchar  "tippr_timestamp", transaction.status "tippr_status", transaction.amount::varchar "tippr_amount"  from core_referral referral, core_publisher publisher, core_transaction transaction where date_trunc('month', date(referral.occurrence at time zone 'pst')) = '%(month_start)s' and referral.event='offer-purchase' and referral.provider='hasoffers' and transaction.id = referral.transaction_id and publisher.id = transaction.publisher_id and publisher.name = '%(publisher)s' order by transaction.occurrence;
+select distinct(referral.transaction_id) "transaction_id", referral.providerid "hasoffers_transaction_id", referral.source "affiliate",(transaction.occurrence at time zone 'pst')::varchar  "tippr_timestamp", transaction.status "tippr_status", transaction.amount::varchar "tippr_amount", offer.name "offer_name"  from core_referral referral, core_publisher publisher, core_transaction transaction left join core_item item on (item.transaction_id = transaction.id) left join core_offer offer on (offer.id = item.offer_id) where date_trunc('month', date(referral.occurrence at time zone 'pst')) = '%(month_start)s' and referral.event='offer-purchase' and referral.provider='hasoffers' and transaction.id = referral.transaction_id and publisher.id = transaction.publisher_id and publisher.name = '%(publisher)s' order by 4;
 
       """
       cols, resultset = throw_sql(sql % {'month_start':month_start,'publisher':publisher},DB_PBT    ); ##bind in the input p
@@ -31,7 +32,47 @@ select referral.transaction_id "transaction_id", referral.providerid "hasoffers_
 
       for row in ROWS:
           test = 1
-	  #row['share_credits_granted'] = {'linkto':url_for('credits_granted_by_date'), 'params':referred_params, 'show':'$ ' + str(int(row['share_credits_granted']))}
+	  row['hasoffers_status'] = 'none'
+	  row['hasoffers_commission'] = '-1.00'
+          row['hasoffers_net_revenue'] = '-1.00'
+	  # MAKE SURE THERE IS A PROVIDER ID FOR THE TRANSACTION AND THAT IT IS NOT NULL/EMPTY
+
+          url = "https://api.hasoffers.com/Api"
+          url = url + "?Format=json"
+          url = url + "&Target=Report"
+          url = url + "&Method=getConversions"
+          url = url + "&Service=HasOffers"
+          url = url + "&Version=2"
+          url = url + "&NetworkId=tippr"
+          url = url + "&NetworkToken=NETfolm5KpltOeugIlw7JvCjX6Rlq9"
+          url = url + "&fields[]=Stat.revenue"
+          url = url + "&fields[]=Affiliate.company"
+          url = url + "&fields[]=Advertiser.company"
+          url = url + "&fields[]=Stat.source"
+          url = url + "&fields[]=Stat.payout"
+	  url = url + "&fields[]=Stat.refer"
+          url = url + "&fields[]=Stat.datetime"
+          url = url + "&fields[]=Stat.ad_id"
+	  url = url + "&fields[]=Stat.status"
+          url = url + "&filters[Stat.ad_id][conditional]=EQUAL_TO"
+          url = url + "&filters[Stat.ad_id][values]=" + str(row['hasoffers_transaction_id'])
+
+
+          f = urllib.urlopen(url)
+          json_response  = f.read()
+          try:
+                decoded_json = json.loads(json_response)
+          except:
+                print "Cannot decode the json object"
+	  try: 
+	     row['hasoffers_commission']=str(decoded_json['response']['data']['data'][0]['Stat']['payout'])
+	     row['hasoffers_status']=str(decoded_json['response']['data']['data'][0]['Stat']['status'])
+
+	     row['hasoffers_net_revenue'] = str(decoded_json['response']['data']['data'][0]['Stat']['revenue'])
+	  except:
+		print "Fatal error received querying for " + str(row['hasoffers_transaction_id']) + " in hasoffers"
+
+	  print decoded_json
 
 
       COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
@@ -39,8 +80,13 @@ select referral.transaction_id "transaction_id", referral.providerid "hasoffers_
         ,{'k':'hasoffers_transaction_id'        ,'l': 'HasOffers Transaction ID'        ,'u': None              ,'w':'200px'}
         ,{'k':'affiliate'                	,'l': 'Affiliate'  			,'u': None     		,'w': '150px'}
 	,{'k':'tippr_timestamp'			,'l': 'Tippr Timestamp'			,'u': 'date'	,'w':'200px'}
-	,{'k':'tippr_status'			,'l': 'Tippr Status'			,'u': None		,'w':'200px'}
-	,{'k':'tippr_amount'			,'l': 'Tippr Amount'			,'u': None		,'w':'200px'}
+	,{'k':'tippr_status'			,'l': 'Tippr Status'			,'u': None		,'w':'120px'}
+	,{'k':'tippr_amount'			,'l': 'Tippr Amount'			,'u': None		,'w':'120px'}
+	,{'k':'hasoffers_status'		,'l': 'Hasoffers Status'		,'u': None		,'w': '100px'}
+	,{'k':'hasoffers_commission'		,'l': 'Hasoffers Commission'		,'u': None		,'w': '100px'}
+        ,{'k':'hasoffers_net_revenue'            ,'l': 'Rev. we reported to HO'            ,'u': None              ,'w': '200px'}
+	,{'k':'offer_name'            ,'l': 'Offer Name'            ,'u': None              ,'w': '300px'}
+
 
       ]
 
