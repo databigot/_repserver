@@ -318,7 +318,7 @@ def tom_detailed_inventory_non_national():
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS[309:310], CONTEXT={'REPORTSLUG':'tom_detailed_inventory_non_national-v1'});
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_detailed_inventory_non_national-v1'});
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
