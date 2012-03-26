@@ -290,10 +290,6 @@ def tom_offers_per_market():
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
-from flask import current_app
-def debug (message):
-      assert current_app.debug == False, message
-
 def tom_detailed_inventory_non_national():
     sql = """
 	select m.name market, o.name offer, date(o.available_start_date) ::varchar "start_date", date(o.available_end_date) ::varchar "end_date", a.name agency, avg(p.price)::float price, avg(p.ask_price)::float ask_price, avg(p.marketplace_ask)::float marketplace_ask
@@ -321,7 +317,6 @@ def tom_detailed_inventory_non_national():
     TITLE='TOM DETAILED INVENTORY LEVELS (non national offers)'; SUBTITLE= '';
 
     format = request.args.get('format','grid');
-    debug(ROWS[309:310])
     if format == 'csv':
         return csv_out(COLS=COLS, ROWS=ROWS[309:310], CONTEXT={'REPORTSLUG':'tom_detailed_inventory_non_national-v1'});
     else: #assume format == 'grid':
