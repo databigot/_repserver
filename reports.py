@@ -137,7 +137,7 @@ select distinct(referral.transaction_id) "transaction_id", referral.providerid "
 
       format = request.args.get('format','grid');
       if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='hasoffers_detail-v1');
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'hasoffers_detail-v1'});
       else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -213,7 +213,7 @@ select site.name "site", voucher.status "status", count(voucher.*) "vouchers" fr
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='tom_cumulative_vouchers-v1');
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_cumulative_vouchers-v1'});
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -248,12 +248,115 @@ def tom_local_inventory(status='approved'):
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='tom_local_inventory-v1');
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_local_inventory-v1'});
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
 
+def tom_local_inventory(status='approved'):
+    status_in = request.args.get('status')
+    if status_in:
+        status = status_in
 
+    sql = """
+ select market.name "market", offer.status "current_status", to_char(date(date_trunc('month', offer.available_end_date)), 'YYYY-MM') "expiration_month", count(offer.*) "non-national_offers" from marketplace_market market, marketplace_offer offer, marketplace_offer_markets offermarkets where offermarkets.offer_id = offer.id and offermarkets.market_id = market.id and offer.status = '%(status)s' and offer.available_end_date > now() and offer.id not in (select offer_id from marketplace_offer_markets where market_id = 'f3413ab5b96611e09a38c42c033b32fa') and offer.private_offer = 'f' group by 1,2,3 order by 1,3;
+
+    """
+    cols, resultset = throw_sql(sql % {'status':status},DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'market'                     ,'l': 'TOM Market'               ,'u': None              ,'w': '200px'}
+        ,{'k':'current_status'                  ,'l': 'Offer Status'          ,'u': None              ,'w':'100px'}
+	,{'k':'expiration_month'	,'l': 'Expiration Month'	,'u': None 		,'w': '100px'}
+        ,{'k':'non-national_offers'                ,'l': 'Non-National Offer Count'  ,'u': 'integer'         ,'w': '150px'}
+
+    ]
+
+    context = {};
+    TITLE='TOM LOCAL INVENTORY LEVELS (non national offers, in approved status, with private_offer set to false)'; SUBTITLE= '';
+    searchform = """
+        <form method='POST' action='%s'> <!--- target is me -->
+            <p><label id='search_label' for='status_input'><span>Date: </span></label>
+            <input id='status_input' name='status' value='%s'>
+            <button type='submit'>Search</button></p>
+        </form>
+    """%('/cumulative_tom_sales_by_site/',status) #note: hardcoded url!
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_local_inventory-v1'});
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+def tom_offers_per_market():
+    sql = """
+	with offermarkets as (
+	    select m.label from 
+	        marketplace_offer o, marketplace_offer_markets om, marketplace_market m 
+		    where (om.market_id = m.id) and (om.offer_id = o.id) 
+		        and (not o.available_start_date > current_date) 
+			and (not o.available_end_date < current_date) 
+			and (o.status = 'approved')  
+			and (private_offer = false) 
+			and (o.id not in (
+			    select o.id from 
+				marketplace_offer o, marketplace_offer_markets om 
+				    where (om.offer_id = o.id) 
+					and (om.market_id = 'f3413ab5b96611e09a38c42c033b32fa')) )) 
+	select m.label, count(offermarkets.name) from 
+	    marketplace_market m left join offermarkets on (offermarkets.label = m.label) 
+		where m.label != 'USA' 
+	group by m.label 
+	order by m.label;
+    """
+    cols, resultset = throw_sql(sql, DB_TOM); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'label'                     ,'l': 'TOM Market'               ,'u': None              ,'w': '200px'}
+	,{'k':'count'                ,'l': 'Offer Count'  ,'u': 'integer'         ,'w': '150px'}
+
+    ]
+
+    context = {};
+    TITLE='TOM OFFER COUNT PER MARKET'; SUBTITLE= '';
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_offers_per_market-v1'});
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
+
+def tom_detailed_inventory_non_national():
+    sql = """
+	select m.name market, o.name offer, date(o.available_start_date) ::varchar "start_date", date(o.available_end_date) ::varchar "end_date", a.name agency, avg(p.price)::float price, avg(p.ask_price)::float ask_price, avg(p.marketplace_ask)::float marketplace_ask
+  	    from marketplace_offer o, marketplace_offer_markets om, marketplace_market m, marketplace_agency a, marketplace_product p
+  		where (om.market_id = m.id) and (om.offer_id = o.id)  and (a.id = o.agency_id) and (p.offer_id = o.id)
+      		    and (not o.available_start_date > current_date) and (not o.available_end_date < current_date) 
+      		    and (o.status = 'approved')  and (private_offer = false) 
+     		    and (o.id not in (select o.id from marketplace_offer o, marketplace_offer_markets om where (om.offer_id = o.id) and (om.market_id = 'f3413ab5b96611e09a38c42c033b32fa')) )
+        group by market, offer, available_start_date, available_end_date, agency
+        order by market, offer;
+    """
+    cols, resultset = throw_sql(sql ,DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'market'                     ,'l': 'TOM Market'               ,'u': None              ,'w': '200px'}
+        ,{'k':'offer'                  ,'l': 'Offer'          ,'u': None              ,'w':'100px'}
+	,{'k':'start_date'	,'l': 'Available Start Date'	,'u': 'date' 		,'w': '100px'}
+	,{'k':'end_date'	,'l': 'Available End Date'	,'u': 'date' 		,'w': '100px'}
+        ,{'k':'agency'                  ,'l': 'Agency'          ,'u': None              ,'w':'100px'}
+  	,{'k':'price'                	,'l': 'Price'  ,'u': 'currency'         ,'w': '150px'}
+  	,{'k':'ask_price'               ,'l': 'Asking Price'  ,'u': 'currency'         ,'w': '150px'}
+  	,{'k':'marketplace_ask'         ,'l': 'Marketplace Asking Price'  ,'u': 'currency'         ,'w': '150px'}
+    ]
+    context = {};
+    TITLE='TOM DETAILED INVENTORY LEVELS (non national offers)'; SUBTITLE= '';
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_detailed_inventory_non_national-v1'});
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
 def credit_summary_by_month(rdate='2012-01-01'):
     rdate_in = request.args.get('rdate')
@@ -289,7 +392,6 @@ def credit_summary_by_month(rdate='2012-01-01'):
 	  referred_params.append("rdate=" + row['date']) 
           row['share_credits_granted'] = {'linkto':url_for('credits_granted_by_date'), 'params':referred_params, 'show':'$ ' + str(int(row['share_credits_granted']))}
           row['new_account_credits_granted'] = {'linkto':url_for('credits_granted_by_date'), 'params':referred_params, 'show':'$ ' + str(int(row['new_account_credits_granted']))}
-
     COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
 #TODO: add in tool-tip, and link-logic.
         {'k':'date'        ,'l': 'Activity Date'    ,'u': 'date'            ,'w': '80px'}
@@ -313,7 +415,7 @@ def credit_summary_by_month(rdate='2012-01-01'):
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='credit_summary_by_month-v1');
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'credit_summary_by_month-v1'});
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -399,7 +501,7 @@ def credits_granted_by_date(rdate='2012-01-01'):
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='credit_grants_by_date-v1');
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'credit_grants_by_date-v1'});
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -551,7 +653,7 @@ def dealcats(id='test'):
 
     format = request.args.get('format','grid');
     if format == 'csv':
-	return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='offer_cat-v1');	
+	return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'offer_cat-v1'});	
     if format == 'gjson':
 	return gjson_out(COLS=COLS, ROWS=ROWS);
     if format == 'djson':
@@ -636,7 +738,7 @@ def agent_sales(yyyymm = None):
 
     	format = request.args.get('format','grid');
     	if format == 'csv':
-		return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='agent_sales-v1');	
+		return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'agent_sales-v1'});	
     	else: #assume format == 'grid':
 		return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, #SUBTITLE=SUBTITLE, 
 			SELECTOR=SELECTOR);

@@ -98,6 +98,8 @@ def index():
 		,{'name': 'TOM voucher sales by site' 		,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
 		,{'name': 'TOM activity by agency'		,'url': url_for('tom_activity_by_agency')}
 		,{'name': 'TOM local inventory levels'		,'url': url_for('tom_local_inventory',status='approved')}
+		,{'name': 'TOM offers per market'		,'url': url_for('tom_offers_per_market')}
+		,{'name': 'TOM Inventory of Non-National Offers'		,'url': url_for('tom_detailed_inventory_non_national')}
 		,{'name': 'Hasoffers transaction detail by publisher/date', 'url': url_for('hasoffers_transaction_detail',month_start='2012-03-01',publisher='frugaling')}
 		] 
 	return render_template("index.html", REPORTS=reports);
@@ -311,6 +313,14 @@ tom_activity_by_agency = app.route("/tom_activity_by_agency/", methods=['GET','P
 from reports import tom_local_inventory
 tom_local_inventory = app.route("/tom_local_inventory/<status>")(tom_local_inventory)
 tom_local_inventory = app.route("/tom_local_inventory/", methods=['GET','POST'])(tom_local_inventory)
+
+from reports import tom_offers_per_market
+tom_local_inventory = app.route("/tom_offers_per_market/<status>")(tom_offers_per_market)
+tom_local_inventory = app.route("/tom_offers_per_market/", methods=['GET','POST'])(tom_offers_per_market)
+
+from reports import tom_detailed_inventory_non_national 
+tom_local_inventory = app.route("/tom_detailed_inventory_non_national/<status>")(tom_detailed_inventory_non_national)
+tom_local_inventory = app.route("/tom_detailed_inventory_non_national/", methods=['GET','POST'])(tom_detailed_inventory_non_national)
 
 from reports import credits_granted_by_date
 credits_granted_by_date = app.route("/credits_granted_by_date/<rdate>")(credits_granted_by_date)
