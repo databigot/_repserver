@@ -145,6 +145,42 @@ select distinct(referral.transaction_id) "transaction_id", referral.providerid "
       # WE ALLOW THE REFERRAL TIMESTAMP AND TRANSACTION TIMESTAMP TO DIFFER BY UP TO ONE DAY
 
 
+def tom_activity_by_agency():
+    # agency name	
+    #offers entered	
+    # offers approved	
+    # promotions requested i
+     # promotions approved
+    # promotions run
+    # vouchers sold
+    # gross sales
+    # tom fees generated
+
+
+    sql = """
+    select agency.name "agency", count(distinct(offers_entered.id)) "entered_offers", count(distinct(offers_approved.id)) "approved_offers", count(distinct(promotions_created.id)) "promotions_created", count(distinct(promotions_run.id)) "promotions_run", count(distinct(voucher.id)) "vouchers_sold" from marketplace_offer offers_entered left join marketplace_offer offers_approved on (offers_entered.id = offers_approved.id and offers_approved.status = 'approved') left join marketplace_promotion promotions_created on (offers_entered.id = promotions_created.offer_id) left join marketplace_promotion promotions_run on (promotions_created.id = promotions_run.id and promotions_run.status in ('closed','finalized')) left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id), marketplace_agency agency where agency.id = offers_entered.agency_id group by 1;
+    """
+    cols, resultset = throw_sql(sql,DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'agency'                     ,'l': 'Agency'               ,'u': None              ,'w': '120px'}
+        ,{'k':'entered_offers'                  ,'l': 'Offers Entered'          ,'u': 'integer'              ,'w':'80px'}
+        ,{'k':'approved_offers'                ,'l': 'Offers Approved'  ,'u': 'integer'         ,'w': '80px'}
+	,{'k':'promotions_created'		,'l': 'Promotions Created','u': 'integer'	,'w': '80px'}
+	,{'k':'promotions_run'			,'l': 'Promotions Run','u': 'integer'		,'w': '80px'}
+	,{'k':'vouchers_sold'			,'l': 'Vouchers Sold','u': 'integer'		,'w': '80px'}
+
+
+    ]
+
+    context = {};
+    TITLE='TOM ACTIVITY BY AGENCY SOURCE'; SUBTITLE= '';
+    searchform = ''
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='tom_activity_by_agency-v1');
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
 
 def cumulative_tom_sales_by_site(status='assigned'):
