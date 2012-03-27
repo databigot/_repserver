@@ -182,6 +182,35 @@ def tom_activity_by_agency():
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
+def tom_activity_by_publisher():
+    # agency name
+    # promotions requested i
+    # promotions run
+    # vouchers sold
+
+
+    sql = """
+     select publisher.name "publisher", count(distinct(promotions_created.id)) "promotions_created", count(distinct(promotions_run.id)) "promotions_run", count(distinct(voucher.id)) "vouchers_sold" from marketplace_promotion promotions_created left join marketplace_promotion promotions_run on (promotions_created.id = promotions_run.id and promotions_run.status in ('closed','finalized')) left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id), marketplace_publisher publisher where publisher.id = promotions_created.publisher_id group by 1;
+"""
+    cols, resultset = throw_sql(sql,DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'publisher'                     ,'l': 'Publisher'               ,'u': None              ,'w': '120px'}
+        ,{'k':'promotions_created'              ,'l': 'Promotions Created','u': 'integer'       ,'w': '80px'}
+        ,{'k':'promotions_run'                  ,'l': 'Promotions Run','u': 'integer'           ,'w': '80px'}
+        ,{'k':'vouchers_sold'                   ,'l': 'Vouchers Sold','u': 'integer'            ,'w': '80px'}
+
+
+    ]
+
+    context = {};
+    TITLE='TOM ACTIVITY BY PUBLISHER'; SUBTITLE= '';
+    searchform = ''
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='tom_activity_by_publisher-v1');
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
 def cumulative_tom_sales_by_site(status='assigned'):
     status_in = request.args.get('status')

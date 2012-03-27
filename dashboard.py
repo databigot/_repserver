@@ -97,6 +97,7 @@ def index():
 		,{'name': 'Transaction Detail for Offers'	,'url': url_for('txn_detail')}
 		,{'name': 'TOM voucher sales by site' 		,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
 		,{'name': 'TOM activity by agency'		,'url': url_for('tom_activity_by_agency')}
+		,{'name': 'TOM activity by publisher'		,'url': url_for('tom_activity_by_publisher')}
 		,{'name': 'TOM local inventory levels'		,'url': url_for('tom_local_inventory',status='approved')}
 		,{'name': 'TOM offers per market'		,'url': url_for('tom_offers_per_market')}
 		,{'name': 'TOM Inventory of Non-National Offers'		,'url': url_for('tom_detailed_inventory_non_national')}
@@ -309,6 +310,9 @@ cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/", metho
 
 from reports import tom_activity_by_agency
 tom_activity_by_agency = app.route("/tom_activity_by_agency/", methods=['GET','POST'])(tom_activity_by_agency)
+
+from reports import tom_activity_by_publisher
+tom_activity_by_publisher = app.route("/tom_activity_by_publisher/", methods=['GET','POST'])(tom_activity_by_publisher)
 
 from reports import tom_local_inventory
 tom_local_inventory = app.route("/tom_local_inventory/<status>")(tom_local_inventory)
