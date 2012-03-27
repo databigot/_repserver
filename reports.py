@@ -178,7 +178,8 @@ def tom_activity_by_agency():
     searchform = ''
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='tom_activity_by_agency-v1');
+ 	return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_activity_by_agency-v1'});
+
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -208,7 +209,7 @@ def tom_activity_by_publisher():
     searchform = ''
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='tom_activity_by_publisher-v1');
+       return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_activity_by_publisher-v1'});
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -242,6 +243,7 @@ select site.name "site", voucher.status "status", count(voucher.*) "vouchers" fr
 
     format = request.args.get('format','grid');
     if format == 'csv':
+
         return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_cumulative_vouchers-v1'});
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
