@@ -318,22 +318,20 @@ def dealcats(id='test'):
 
 def agent_sales(yyyymm = None):
 	"""
+		Report of Agent Sales for the Month
 	"""
-	pick_month = [('2011-01','January 2011')
-			,('2011-02','Febuary 2011')
-			,('2011-03','March 2011')
-			,('2011-04','April 2011')
-			,('2011-05','May 2011')
-			,('2011-06','June 2011')
-			,('2011-07','July 2011')
-			,('2011-08','August 2011') 
-			,('2011-09','September 2011') 
-			,('2011-10','October 2011') 
-			,('2011-11','November 2011') 
-			,('2011-12','December 2011') 
-			,('2012-01','January 2012')
-			,('2012-02','February 2012 - partial month to date')]
-	yyyymm = yyyymm or '2012-02';	
+	month = datetime.date(2011, 1, 1) #starting month that we have data for
+	pick_month = []; 
+	today = datetime.date.today()
+	todaykey = today.strftime('%Y-%m')
+	while month < today:
+		monthkey = month.strftime( '%Y-%m')
+		monthvalue = month.strftime( '%B %Y') + (
+			" -- MTD" if monthkey == todaykey else "")
+		pick_month.append((monthkey,monthvalue))
+		month = month + datetime.timedelta(days=31) 
+
+	yyyymm = yyyymm or todaykey #pick current as default	
 	SELECTOR = {
 		'list':		pick_month
 		,'current': 	yyyymm
@@ -595,169 +593,6 @@ select ag_acc.fullname agent, ad.name merchant, p.name publisher, o.status, o.st
                ,{'k':'gross' 		,'l':'gross'         ,'u': 'currency'              ,'w': '60px'}
 	]
 	return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
-
-#def txn_detail(publisher=None, offers=None): #TODO: add month optional
-def txn_detail(format=None, publisher=None, offers=None): #TODO: add month optional
-	"""
-		Show detailed closed transactions (for this pubisher or/and for these offers, TODO:for this period).
-		List passed in of offers
-	"""
-	_REP_SLUG = 'TRANSACTION-DETAIL'; _REP_VER = .5; _REP_FN = 'txn_detail'
-	q_offers = request.values.getlist('offer',None)
-#	offers = offers or ['abb65856923e4e389ae6a09709e70600','7b7c54d1a9854f8788db45df42b7d87b', '8d10df493ad74e86a70e9a4527913739','7ee676edc5564d5f9d0cdfa7d5d620fe']
-	q_publisher = publisher or '225besteats'
-	q_filter_pretty = request.values.get('filter_pretty',None)
-	q_after= request.values.get('after', '02-01-2012') 
-	q_before=request.values.get('before', '02-28-2012')
-
-	rep_req_id = cache_report_request({
-		#who: //requested_by
-		'who': g.user,
-		#when://requested_at.  future: to_run_at, recurring-auto-info. 
-		'when_requested': datetime.datetime.now(), 'when_to_run': datetime.datetime.now(), 
-		#what: //TODO: repdef: can be named:
-		'what': 
-		#	1.//which report, what version
-			{ 'report': _REP_SLUG, 'version': _REP_VER, 'function': _REP_FN}.
-		#	2.//chosen params
-			update({'publisher': q_publisher, 'offers': q_offers, 'filter_pretty': q_filter_pretty}),
-		#how: //format, audience (for email or restrict-to), delivery_by (email-in, email-link, www, now?)
-		'how': 
-			{'channel':'www', 'restrict': 'ALL'}
-		}) 
-		
-	sql_offer_info = """
-			SELECT o.id, p.name publisher, o.end_date::varchar promotion_end, ad.category_id category, o.headline promotion,
-				 ad.name merchant, 
-				(SELECT ag_acc.fullname agent 
-					FROM core_account ag_acc, core_agent ag
-					WHERE ag_acc.id = ag.account_id and ag.id = o.agent_id) agent
-				FROM core_publisher p, core_advertiser ad, core_offer o
-				WHERE o.publisher_id = p.id and o.advertiser_id = ad.id
-	"""
-	sql_user_info = """
-			SELECT a.id, a.fullname as name, a.gender, a.birthday::DATE::VARCHAR, e.email, a.date_joined::DATE::VARCHAR, a.zipcode
-				FROM core_account a, core_emailaddress e
-				WHERE a.email_id = e.id
-		"""
-	sql_txn_info = """
-			WITH v_vouchers AS (
-				SELECT i.transaction_id,  max(i.offer_id) offer_id, 
-						sum(1) qty, sum(i.amount) amount
-					FROM core_item i, core_voucher v
-					WHERE v.item_ptr_id = i.id and
-						v.status in ('issued', 'purchased', 'redeemed')
-				GROUP BY i.transaction_id
-			)
-			SELECT t.id, t.occurrence::DATE::VARCHAR, t.account_id user_id, t.amount::float txn_amount,
-					v.offer_id, v.qty, v.amount::FLOAT voucher_amount,
-					(SELECT sum(p.amount)::FLOAT 
-						FROM core_payment p, core_creditpayment cp
-						WHERE cp.payment_ptr_id = p.id and p.transaction_id = t.id) credit_amount
-				FROM core_transaction t, v_vouchers v
-				WHERE v.transaction_id = t.id and t.status = 'completed'
-					{% if TXNS_AFTER %} and t.occurrence >= '{{ TXNS_AFTER }}' {% endif %}
-					{% if TXNS_BEFORE %} and t.occurrence <= '{{ TXNS_BEFORE }}' {% endif %}
-	"""
-	sql_container = """
-		WITH 	v_txns AS (
-				{{sql_txn_info}}
-			),
-			v_users AS (
-				{{sql_user_info}}
-			),
-		 	v_offers AS (
-				{{sql_offer_info}}
-			)
-		{{sql_main}}
-	"""
-	sql_main = """
-		SELECT 	t.*,
-				/*id, occurrence, user_id, txn_amount, offer_id, qty, voucher_amount, ##!! credit_amount */
-			u.*,
-				/*id, name, gender, birthday, email, date_joined, zipcode*/
-			o.*
-				/*id, publisher, end_date, category, promotion, merchant*/
-			FROM v_txns t, v_users u, v_offers o
-			WHERE t.user_id = u.id and t.offer_id = o.id and
-				t.credit_amount > 0  
-				{% if PUB %} and o.publisher = '{{ PUB }}' {% endif %}
-				{% if OFFER_LIST %} and o.id = any ('{ {{OFFER_LIST }} }') {% endif %}
-				;   	
-	"""
-	
-	build_sql = render_template_string(sql_container, #combine
-			sql_main=sql_main,
-			sql_txn_info=sql_txn_info, 
-			sql_offer_info=sql_offer_info, 
-			sql_user_info=sql_user_info) 
-
-	build_sql = render_template_string(build_sql,	#then, substitute
-			TXNS_AFTER=q_after, TXNS_BEFORE=q_before, OFFER_LIST=q_offers, PUB=q_publisher)
-
-	#expects order_list to be string,string,string -- not quoted.
-	#todo: add the numerics: voucher#, net, gross, etc.
-#	sql = render_template_string(build_sql, OFFER_LIST=offers, PUB=publisher)
-
-
-	
-
-	print 'SQL:'+build_sql
-	cols, resultset = throw_sql(build_sql, DB_PBT)
-
-	cache_save_dataset({#todo: ^rep-def, ^rep-request #TODO: in future, data should be tied to repdef, not rep-req, and maybe rep-req should have rep-run info, like what dataset was used.
-		'report_req': rep_req_id,
-		'who_pulled': g.user,
-		'when_pulled': datetime.datetime.now(),
-		'db': 'DB_PBT',
-		'sql': build_sql,
-		'dataset': {'COLS':cols,
-			'RESULTSET': resultset}
-		#todo: how long did it take, name & version of QUERY used, ^to rep-def
-		})
-	# If we want to load from cache:
-	#cols, resultset = cache_fetch_dataset(rep_req_id)
-
-
-
-
-	ROWS = [dict(zip(cols,row)) for row in resultset]
-	COLS = cols
-#	return render_template("debugging.html", SQL=sql);
-
-	SUBTITLE = q_filter_pretty
-	TITLE ='TRANSACTION DETAIL REPORT';
-
-
-
-#	return render_template("simple_tester_report.html", SQL=sql, COLS=cols, ROWS=resultset, TITLE=TITLE, SUBTITLE=SUBTITLE);
-
-
-        COLS = [#k:field_name           l:title(\n)             u:formatting   t!new: google-typ     w:width  	!!added x:example_text!! instead of w
-               {'k':'publisher' 	,'l':'publisher'        ,'u': None     ,'t':None	,'w':'104px' 	,'x': '225besteats'}
-               	,{'k':'promotion_end' 	,'l':'promotion_end'    ,'u': 'date'   ,'t':'date'	,'w':'99px'	,'x': '01/01/2012'}
-               	,{'k':'category' 	,'l':'category'     	,'u': None     ,'t':None       	,'w':'133px'	,'x': 'Health & Medicine'}
-		,{'k':'merchant'	, 'l':'merchant'	,'u': None	,'t':None	,'w':'158px'	,'x': 'Medicine & Anti-Aging Clinic'}
-                ,{'k':'promotion' 	,'l':'promotion'        ,'u': None     ,'t':None	,'w':'258px'	,'x': 'Chemical Peel & Microdermabrasion'}
-               	,{'k':'agent' 		,'l':'agent'   		,'u': None     ,'t':None	,'w':'83px'  	,'x': 'jakob jingle-himer'}
-               	,{'k':'qty' 		,'l':'qty'      	,'u': 'integer','t':'number'	,'w':'44px'     ,'x': '999'}
-               	,{'k':'txn_amount' 	,'l':'amount'		,'u': 'currency','t':'number'    ,'w':'62px'      ,'x': '$10,000'}
-               	,{'k':'credit_amount' 	,'l':'credits'    	,'u': 'currency','t':'number'    ,'w':'49px'      ,'x': '$10,000'}
-               	,{'k':'name' 		,'l':'user_name'      	,'u': None	,'t':None        ,'w':'109px'    ,'x': 'jakob jingle-himer'}
-               	,{'k':'email' 		,'l':'email'         	,'u': None	,'t':None        ,'w':'159px'   	,'x': 'able_baker@a_longaddr.com'}
-               	,{'k':'zipcode' 	,'l':'zipcode'          ,'u': None	,'t':None      	,'w':'53px'	,'x': '94707'}
-               	,{'k':'date_joined' 	,'l':'date_joined'      ,'u': 'date'	,'t':'date'    	,'w':'82px'	,'x': '01/01/2012'}
-	]
-
-
-    	format = format or request.args.get('format','html'); #expects csv, json, plain, html
-
-	if format == 'json': return json_out(ROWS, COLS, {});
-	if format == 'csv': return csv_out(ROWS, COLS, {'REPORTSLUG':'TXN-DET-RPT'});
-	if format == 'gjson': return gjson_out(ROWS, COLS, {});
-
-	return render_template("report2.html", SQL=build_sql, COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
-
 
 
 
