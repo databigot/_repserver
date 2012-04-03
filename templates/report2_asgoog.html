@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+
+{% macro render_me(grid_container_id, COLS, ROWS) -%}
+
+<script type="text/javascript">
+	var visualization;
+	var dataTable = new google.visualization.DataTable();
+
+	{% for col in COLS %}
+		dataTable.addColumn( {
+			{% if col.t == None %}
+				type: 'string', label: '{{ col.l }}'});
+			{% elif col.t == 'date' %} {# HACK!! #}
+				type: 'string', label: '{{ col.l }}'});
+			{% else %}
+				type: '{{ col.t }}', label: '{{ col.l }}'});
+			{% endif %}
+	{% endfor %}
+
+	{% for row in ROWS %}
+		dataTable.addRow( [
+			{% for col in COLS %}
+				{% if col.t == 'number' %}
+					{{ row[col.k] | safe }} {% if not loop.last %}, {% endif %}
+				{% elif col.t == 'date' %} {# HACK!! #}
+					"{{ row[col.k] | safe }}" {% if not loop.last %}, {% endif %}
+				{% else %}
+					"{{ row[col.k] | safe }}" {% if not loop.last %}, {% endif %}
+				{% endif %}
+			{% endfor %}
+			]);
+	{% endfor %}
+
+	// draw the actual table
+	function drawVisualization() {
+		var table = new google.visualization.Table( document.getElementById('report-grid')); //HACK:{{ grid_container_id }}'));
+		table.draw(dataTable, { allowHtml: true });
+	}
+	
+	// on ready, do draw
+	google.setOnLoadCallback(drawVisualization);
+	
+
+
+ $(function() {
+	$('#download-csv-link').click(function(event) {
+		
+		if (window.location.search)
+			window.location = window.location + '&format=csv';
+		else
+			window.location = window.location + '?format=csv';
+		return false;});
+	});
+
+</script>
+
+{% if ROWS %}
+	<div class='report-header'>
+	</div>
+	<div id='reports-grid-container' class='grid-container clear'>
+		<div id='report-grid' ></div> 
+		{% set GRID_ID = 'report-grid' %}
+	</div>
+{% else %}
+	<div class='no-reports'>
+		<h1>No {{ TITLE }} Found.</h1>
+	</div>
+{% endif %}
+{%- endmacro %}
+
+{% block js_libs %}
+{{ super() }}
+	<script type="text/javascript" src="http://www.google.com/jsapi"></script>
+	<script type="text/javascript">
+		google.load('visualization', '1', {packages: ['table']});
+	</script>
+    <script src="/static/js/utils.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.js"> </script>
+{% endblock js_libs %}
+
+{% block styles %}
+{{ super() }}
+
+ <style type="text/css">
+     /*Grid need a explicit width/height by default*/
+     #grid {
+         width: 43em;
+         height: 20em;
+     }
+	#report-grid {
+		margin: 40px;
+	}
+	.report-title {
+		text-align: center;
+		font-size: 20px;
+		font-family: arial;
+	}
+    .report-subtitle {
+        text-align: center;
+        font-size: 18px;
+        font-style: italic;
+    }
+    .report-date {
+        margin-right: 40px;
+        text-align: right;
+    }
+ </style>
+
+
+<style type="text/css">
+.col-align-right {
+	text-align: right;
+	}
+
+
+
+body {
+	font-family: arial;
+	font-size:8pt;
+	margin: 30px;
+}
+th {
+/*    font-style: italic;
+*/
+    font-size:10pt;
+}
+tr {
+	font-weight:bold;
+	font-size:8pt;
+}
+
+
+</style>
+{% endblock styles %}
+
+{% block page_content %}
+<br />
+<br />
+
+<div class='report-title'>{{ TITLE }}</div><br />
+{% if SUBTITLE %}<div class='report-subtitle'>{{ SUBTITLE }}</div><br />{% endif %}
+
+<div class='report-date'>{{ now }}<br/> {{ g.user }}</div><br />
+{% if BACK %}<div><a href='{{ BACK }}'>Go Back</a></div><br />{% endif %}
+
+{% if SELECTOR %}
+{% for key,value in SELECTOR.list %}
+	{% if key==SELECTOR.current %}
+		<div class='report-subtitle'>(for {{ value }})</div><br />
+	{% endif %}
+{% endfor %}
+<!-- form method='POST' id='form' action='{{ SELECTOR.submit_url }}'> <!--- target is me -->
+
+   <p><label id='search_label' for='search_input'><span>{{ SELECTOR.name }}: </span></label>
+   <select id='search_input' name='id' onChange='javascript: window.location="{{ SELECTOR.submit_url }}"+""+$("#search_input").val();'>
+   {% for key,value in SELECTOR.list %}
+         <option value='{{ key }}' {% if key==SELECTOR.current %} selected {% endif %} > 
+            {{ value }}</option> 
+   {% endfor %}                    
+   </select>               
+   <!--button type='submit'>Change {{ SELECTOR.name }}</button></p> 
+</form-->
+{% endif %}
+
+<br />
+<a href id='download-csv-link'>Download as CSV</a>
+
+{{ render_me( GRID_ID, COLS,ROWS) }}
+{# note: grid_ID is set inside this template,NOT passed in #}
+
+<br />
+
+{% endblock page_content %}
