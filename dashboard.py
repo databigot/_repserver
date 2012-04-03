@@ -5,6 +5,7 @@ from flaskext.openid import OpenID, COMMON_PROVIDERS
 import datetime
 import os
 import sys
+from pymongo import Connection, objectid
 
 import csv
 
@@ -95,8 +96,17 @@ def index():
 		,{'name': 'Daily Credit Grants Report'		,'url': url_for('credits_granted_by_date',rdate='2012-01-01')}
 		,{'name': 'Monthly Credit Summary Report'	,'url': url_for('credit_summary_by_month',rdate='2012-01-01')}
 		,{'name': 'Sales Report by Agent'		,'url': url_for('agent_sales')}
+
 #		,{'name': 'Transaction Detail for Offers'	,'url': url_for('txn_detail')}
 #		,{'name': 'Long Running Queries'		,'url': url_for('ui_invoke_long_running')}
+
+		,{'name': 'TOM voucher sales by site' 		,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
+		,{'name': 'TOM activity by agency'		,'url': url_for('tom_activity_by_agency')}
+		,{'name': 'TOM activity by publisher'		,'url': url_for('tom_activity_by_publisher')}
+		,{'name': 'TOM local inventory levels'		,'url': url_for('tom_local_inventory',status='approved')}
+		,{'name': 'TOM offers per market'		,'url': url_for('tom_offers_per_market')}
+		,{'name': 'TOM Inventory of Non-National Offers'		,'url': url_for('tom_detailed_inventory_non_national')}
+		,{'name': 'Hasoffers transaction detail by publisher/date', 'url': url_for('hasoffers_transaction_detail',month_start='2012-03-01',publisher='frugaling')}
 		] 
 	return render_template("index.html", REPORTS=reports);
 
@@ -299,6 +309,27 @@ from reports import account_detail
 account_detail = app.route("/account_detail/<id>")(account_detail)
 account_detail = app.route("/account_detail/", methods=['GET','POST'])(account_detail)
 
+from reports import cumulative_tom_sales_by_site
+cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/<status>")(cumulative_tom_sales_by_site)
+cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/", methods=['GET','POST'])(cumulative_tom_sales_by_site)
+
+from reports import tom_activity_by_agency
+tom_activity_by_agency = app.route("/tom_activity_by_agency/", methods=['GET','POST'])(tom_activity_by_agency)
+
+from reports import tom_activity_by_publisher
+tom_activity_by_publisher = app.route("/tom_activity_by_publisher/", methods=['GET','POST'])(tom_activity_by_publisher)
+
+from reports import tom_local_inventory
+tom_local_inventory = app.route("/tom_local_inventory/<status>")(tom_local_inventory)
+tom_local_inventory = app.route("/tom_local_inventory/", methods=['GET','POST'])(tom_local_inventory)
+
+from reports import tom_offers_per_market
+tom_local_inventory = app.route("/tom_offers_per_market/<status>")(tom_offers_per_market)
+tom_local_inventory = app.route("/tom_offers_per_market/", methods=['GET','POST'])(tom_offers_per_market)
+
+from reports import tom_detailed_inventory_non_national 
+tom_local_inventory = app.route("/tom_detailed_inventory_non_national/<status>")(tom_detailed_inventory_non_national)
+tom_local_inventory = app.route("/tom_detailed_inventory_non_national/", methods=['GET','POST'])(tom_detailed_inventory_non_national)
 
 from reports import credits_granted_by_date
 credits_granted_by_date = app.route("/credits_granted_by_date/<rdate>")(credits_granted_by_date)
@@ -311,6 +342,13 @@ credit_summary_by_month = app.route("/credit_summary_by_month/", methods=['GET',
 from reports import offer_metrics
 offer_metrics = app.route("/offer_metrics/<offer_id>")(offer_metrics)
 offer_metrics = app.route("/offer_metrics/", methods=['GET','POST'])(offer_metrics)
+
+from reports import tom_breakdown
+tom_breakdown = app.route("/tom_breakdown/<offer_id>")(tom_breakdown)
+tom_breakdown = app.route("/tom_breakdown/", methods=['GET','POST'])(tom_breakdown)
+
+from reports import hasoffers_transaction_detail
+hasoffers_transaction_detail = app.route("/hasoffers_transaction_detail/", methods=['GET','POST'])(hasoffers_transaction_detail)
 
 from reports import dealcats
 dealcats = app.route("/pubreps/dealcats/<id>")(dealcats)
@@ -417,6 +455,100 @@ def cctrans():
     context["perip"] = suspicious
 
     return render_template( 'cctrans.html', **context )
+
+#------------------------------------------------------------------------------
+
+@app.route("/upload_codeset/")
+def upload_codeset():
+    return render_template( 'upload_new_codeset.html' )
+
+@app.route("/action/", methods=["POST"] )
+def action():
+    act = request.values["action"]
+    obtype = request.values["type"]
+    oid = objectid.ObjectId( request.values["id"] )
+
+    status = "haven't tried anything"
+
+    conn = Connection("mongodb://code_store:fr33$tuff@master.dw.tippr.com/code_store")
+
+    if (obtype == "codeset"):
+	if (act== "activate"):
+	    conn.code_store.codes.update( { "codeset" : oid }, {"$set" : {"activated":True}}, multi=True  )
+            conn.code_store.codesets.update( { "_id" : oid }, {"$set": {"activated":True}} )
+            status = "Succeeded: that codeset is activated"
+        elif (act == "delete"):
+            conn.code_store.codes.remove( { "codeset" : oid } )
+            conn.code_store.codesets.remove( { "_id" : oid } )            
+            status = "Succeeded: that codeset is toast"
+        else:
+            status = "Failed: I don't know how to %s a %s" % (act, obtype)
+    else:
+        status = "Failed: I have no idea what a %s is." % obtype
+
+
+    context = { "action" : act,
+                "obtype" : obtype,
+                "id" : request.values["id"],
+                "status" : status }
+
+    return render_template( 'action.html', **context )
+
+
+@app.route("/confirm_codeset/", methods=['POST'])
+def upload():
+    codes =  request.files["codes"].getvalue().split("\n")
+
+
+    # Write the codeset
+    conn = Connection("mongodb://code_store:fr33$tuff@master.dw.tippr.com/code_store")
+    db = conn.code_store
+    coll = conn.code_store.codes
+   
+
+    merch = request.values["merchant"].lower().replace(" ","-").replace(".", "").replace(",","").replace("&","").replace("--", "-")
+    dt = datetime.date.today().strftime("%y-%m-%d")
+    done = False
+    tries = 1
+    while not done:
+        if (tries == 1):
+            name = "%s-%s" % (merch,dt)
+        else:
+            name = "%s-%s-%s" % (merch, dt, tries)
+        found = conn.code_store.codesets.find_one( { "name" : name } )
+        if found == None:
+            done = True
+        else:
+            tries += 1
+
+	
+    codeset = { "_id" : objectid.ObjectId(),
+		"merchant" : request.values["merchant"],
+                "related_system": { "system" : request.values["system"], "id" : request.values["sysid"] },
+                "name" : name,
+		"info" : request.values["comments"],
+                "activated" : False }
+
+    db.codesets.save( codeset )
+    print "Got this far at least"
+
+    code_docs = [ { "code": c, "codeset" : codeset["_id"], "activated" : False, "expires" : request.values["date"] } for c in codes ]
+    db.codes.insert(code_docs)
+
+    # render the page
+    context = { "merchant" : request.values["merchant"],
+                "expdate" : request.values["date"],
+                "system" : request.values["system"],
+		"comments" : request.values["comments"],
+		"name" : name,
+		"samples" : "<br />".join(codes[:5]),
+                "codeset_id" : str(codeset["_id"])  }
+
+    return render_template('confirm_codeset.html', **context)
+
+
+
+
 
 
 def md5( s ):

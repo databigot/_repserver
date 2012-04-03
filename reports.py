@@ -9,7 +9,385 @@ import datetime
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
+def hasoffers_transaction_detail(publisher_id=1,month_start='2012-03-01',publisher='frugaling'):
+      import urllib
+      #pull all the transactions for a given publisher and given month	
+        
+      publisher_in = request.args.get('publisher')
+      if publisher_in:
+          publisher = publisher_in
 
+      month_start_in = request.args.get('month_start')
+      if month_start_in:
+	  month_start = month_start_in
+
+
+      sql = """
+
+select distinct(referral.transaction_id) "transaction_id", referral.providerid "hasoffers_transaction_id", referral.source "affiliate",(transaction.occurrence at time zone 'pst')::varchar  "tippr_timestamp", transaction.status "tippr_status", transaction.amount::varchar "tippr_amount", offer.name "offer_name"  from core_referral referral, core_publisher publisher, core_transaction transaction left join core_item item on (item.transaction_id = transaction.id) left join core_offer offer on (offer.id = item.offer_id) where date_trunc('month', date(referral.occurrence at time zone 'pst')) = '%(month_start)s' and referral.event='offer-purchase' and referral.provider='hasoffers' and transaction.id = referral.transaction_id and publisher.id = transaction.publisher_id and publisher.name = '%(publisher)s' order by 4;
+
+      """
+      cols, resultset = throw_sql(sql % {'month_start':month_start,'publisher':publisher},DB_PBT    ); ##bind in the input p
+      ROWS = [dict(zip(cols,row)) for row in resultset]
+
+      for row in ROWS:
+          test = 1
+	  row['hasoffers_status'] = 'none'
+	  row['hasoffers_commission'] = '-1.00'
+          row['hasoffers_net_revenue'] = '-1.00'
+	  # MAKE SURE THERE IS A PROVIDER ID FOR THE TRANSACTION AND THAT IT IS NOT NULL/EMPTY
+
+          url = "https://api.hasoffers.com/Api"
+          url = url + "?Format=json"
+          url = url + "&Target=Report"
+          url = url + "&Method=getConversions"
+          url = url + "&Service=HasOffers"
+          url = url + "&Version=2"
+          url = url + "&NetworkId=tippr"
+          url = url + "&NetworkToken=NETfolm5KpltOeugIlw7JvCjX6Rlq9"
+          url = url + "&fields[]=Stat.revenue"
+          url = url + "&fields[]=Affiliate.company"
+          url = url + "&fields[]=Advertiser.company"
+          url = url + "&fields[]=Stat.source"
+          url = url + "&fields[]=Stat.payout"
+	  url = url + "&fields[]=Stat.refer"
+          url = url + "&fields[]=Stat.datetime"
+          url = url + "&fields[]=Stat.ad_id"
+	  url = url + "&fields[]=Stat.status"
+          url = url + "&filters[Stat.ad_id][conditional]=EQUAL_TO"
+          url = url + "&filters[Stat.ad_id][values]=" + str(row['hasoffers_transaction_id'])
+
+
+          f = urllib.urlopen(url)
+          json_response  = f.read()
+          try:
+                decoded_json = json.loads(json_response)
+          except:
+                print "Cannot decode the json object"
+	  try: 
+	     row['hasoffers_commission']=str(decoded_json['response']['data']['data'][0]['Stat']['payout'])
+	     row['hasoffers_status']=str(decoded_json['response']['data']['data'][0]['Stat']['status'])
+
+	     row['hasoffers_net_revenue'] = str(decoded_json['response']['data']['data'][0]['Stat']['revenue'])
+	  except:
+		print "Fatal error received querying for " + str(row['hasoffers_transaction_id']) + " in hasoffers"
+
+	  print decoded_json
+
+
+      COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'transaction_id'           	,'l': 'Tippr Transaction ID'            ,'u': None              ,'w': '200px'}
+        ,{'k':'hasoffers_transaction_id'        ,'l': 'HasOffers Transaction ID'        ,'u': None              ,'w':'200px'}
+        ,{'k':'affiliate'                	,'l': 'Affiliate'  			,'u': None     		,'w': '150px'}
+	,{'k':'tippr_timestamp'			,'l': 'Tippr Timestamp'			,'u': 'date'	,'w':'200px'}
+	,{'k':'tippr_status'			,'l': 'Tippr Status'			,'u': None		,'w':'120px'}
+	,{'k':'tippr_amount'			,'l': 'Tippr Amount'			,'u': None		,'w':'120px'}
+	,{'k':'hasoffers_status'		,'l': 'Hasoffers Status'		,'u': None		,'w': '100px'}
+	,{'k':'hasoffers_commission'		,'l': 'Hasoffers Commission'		,'u': None		,'w': '100px'}
+        ,{'k':'hasoffers_net_revenue'            ,'l': 'Rev. we reported to HO'            ,'u': None              ,'w': '200px'}
+	,{'k':'offer_name'            ,'l': 'Offer Name'            ,'u': None              ,'w': '300px'}
+
+
+      ]
+
+
+      if 0:
+   	for transaction_id in transactions:
+           # MAKE SURE THERE IS A PROVIDER ID FOR THE TRANSACTION AND THAT IT IS NOT NULL/EMPTY
+
+	   url = "https://api.hasoffers.com/Api"
+	   url = url + "?Format=json"
+	   url = url + "&Target=Report"
+	   url = url + "&Method=getConversions"
+	   url = url + "&Service=HasOffers"
+	   url = url + "&Version=2"
+	   url = url + "&NetworkId=tippr"
+	   url = url + "&NetworkToken=NETfolm5KpltOeugIlw7JvCjX6Rlq9"
+	   url = url + "&fields[]=Stat.revenue"
+	   url = url + "&fields[]=Affiliate.company"
+	   url = url + "&fields[]=Advertiser.company"
+	   url = url + "&fields[]=Stat.source"
+	   url = url + "&fields[]=Stat.affiliate_info1"
+	   url = url + "&fields[]=Stat.affiliate_info2"
+	   url = url + "&fields[]=Stat.affiliate_info3"
+	   url = url + "&fields[]=Stat.affiliate_info4"
+	   url = url + "&fields[]=Stat.affiliate_info5"
+	   url = url + "&fields[]=Stat.refer"
+	   url = url + "&fields[]=Stat.datetime"
+	   url = url + "&fields[]=Stat.ad_id"
+	   url = url + "&filters[Stat.ad_id][conditional]=EQUAL_TO"
+	   url = url + "&filters[Stat.ad_id][values]=" + str(transaction_id)
+
+
+	   f = urllib.urlopen(url)
+	   json_response  = f.read()
+	   try:
+		decoded_json = json.loads(json_response)
+	   except:
+		print "Cannot decode the json object"
+      context = {};
+      TITLE='HASOFFERS AFFILIATE TRANSACTIONS BY PUBLISHER & MONTH'; SUBTITLE= '';
+      searchform = """
+        <form method='POST' action='%s'> <!--- target is me -->
+            <p><label id='search_label' for='status_input'><span>Month Start: </span></label>
+            <input id='month_start_input' name='month_start' value='%s'>
+            <button type='submit'>Search</button></p>
+        </form>
+      """%('/hasoffers_transaction-detail/',month_start) #note: hardcoded url!
+
+      format = request.args.get('format','grid');
+      if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'hasoffers_detail-v1'});
+      else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+
+      # WE ALLOW THE REFERRAL TIMESTAMP AND TRANSACTION TIMESTAMP TO DIFFER BY UP TO ONE DAY
+
+
+def tom_activity_by_agency():
+    # agency name	
+    #offers entered	
+    # offers approved	
+    # promotions requested i
+     # promotions approved
+    # promotions run
+    # vouchers sold
+    # gross sales
+    # tom fees generated
+
+
+    sql = """
+    select agency.name "agency", count(distinct(offers_entered.id)) "entered_offers", count(distinct(offers_approved.id)) "approved_offers", count(distinct(promotions_created.id)) "promotions_created", count(distinct(promotions_run.id)) "promotions_run", count(distinct(voucher.id)) "vouchers_sold" from marketplace_offer offers_entered left join marketplace_offer offers_approved on (offers_entered.id = offers_approved.id and offers_approved.status = 'approved') left join marketplace_promotion promotions_created on (offers_entered.id = promotions_created.offer_id) left join marketplace_promotion promotions_run on (promotions_created.id = promotions_run.id and promotions_run.status in ('closed','finalized')) left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id), marketplace_agency agency where agency.id = offers_entered.agency_id group by 1;
+    """
+    cols, resultset = throw_sql(sql,DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'agency'                     ,'l': 'Agency'               ,'u': None              ,'w': '120px'}
+        ,{'k':'entered_offers'                  ,'l': 'Offers Entered'          ,'u': 'integer'              ,'w':'80px'}
+        ,{'k':'approved_offers'                ,'l': 'Offers Approved'  ,'u': 'integer'         ,'w': '80px'}
+	,{'k':'promotions_created'		,'l': 'Promotions Created','u': 'integer'	,'w': '80px'}
+	,{'k':'promotions_run'			,'l': 'Promotions Run','u': 'integer'		,'w': '80px'}
+	,{'k':'vouchers_sold'			,'l': 'Vouchers Sold','u': 'integer'		,'w': '80px'}
+
+
+    ]
+
+    context = {};
+    TITLE='TOM ACTIVITY BY AGENCY SOURCE'; SUBTITLE= '';
+    searchform = ''
+    format = request.args.get('format','grid');
+    if format == 'csv':
+ 	return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_activity_by_agency-v1'});
+
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+def tom_activity_by_publisher():
+    # agency name
+    # promotions requested i
+    # promotions run
+    # vouchers sold
+
+
+    sql = """
+     select publisher.name "publisher", count(distinct(promotions_created.id)) "promotions_created", count(distinct(promotions_run.id)) "promotions_run", count(distinct(voucher.id)) "vouchers_sold" from marketplace_promotion promotions_created left join marketplace_promotion promotions_run on (promotions_created.id = promotions_run.id and promotions_run.status in ('closed','finalized')) left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id), marketplace_publisher publisher where publisher.id = promotions_created.publisher_id group by 1;
+"""
+    cols, resultset = throw_sql(sql,DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'publisher'                     ,'l': 'Publisher'               ,'u': None              ,'w': '120px'}
+        ,{'k':'promotions_created'              ,'l': 'Promotions Created','u': 'integer'       ,'w': '80px'}
+        ,{'k':'promotions_run'                  ,'l': 'Promotions Run','u': 'integer'           ,'w': '80px'}
+        ,{'k':'vouchers_sold'                   ,'l': 'Vouchers Sold','u': 'integer'            ,'w': '80px'}
+
+
+    ]
+
+    context = {};
+    TITLE='TOM ACTIVITY BY PUBLISHER'; SUBTITLE= '';
+    searchform = ''
+    format = request.args.get('format','grid');
+    if format == 'csv':
+       return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_activity_by_publisher-v1'});
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+def cumulative_tom_sales_by_site(status='assigned'):
+    status_in = request.args.get('status')
+    if status_in:
+        status = status_in 
+
+    sql = """
+select site.name "site", voucher.status "status", count(voucher.*) "vouchers" from marketplace_site site, marketplace_voucher voucher where voucher.site_id = site.id group by 1,2 having count(voucher.*) > 1 and voucher.status = '%(status)s' order by 3 desc;
+
+    """
+    cols, resultset = throw_sql(sql % {'status':status},DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'site'  			,'l': 'Site Name'    		,'u': None            	,'w': '200px'}
+        ,{'k':'status'			,'l': 'Voucher Status'		,'u': None     		,'w':'80px'}
+        ,{'k':'vouchers'                ,'l': 'Vouchers Sold/Assigned'  ,'u': 'integer'		,'w': '150px'}
+
+    ]
+
+    context = {};
+    TITLE='CUMULATIVE TOM VOUCHERS SALES BY SITE NAME (ALL VOUCHERS THAT HAVE NOT BEEN RETURNED/CANCELLED)'; SUBTITLE= '';
+    searchform = """
+        <form method='POST' action='%s'> <!--- target is me -->
+            <p><label id='search_label' for='status_input'><span>Date: </span></label>
+            <input id='status_input' name='status' value='%s'>
+            <button type='submit'>Search</button></p>
+        </form>
+    """%('/cumulative_tom_sales_by_site/',status) #note: hardcoded url!
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_cumulative_vouchers-v1'});
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+def tom_local_inventory(status='approved'):
+    status_in = request.args.get('status')
+    if status_in:
+        status = status_in
+
+    sql = """
+ select market.name "market", offer.status "current_status", to_char(date(date_trunc('month', offer.available_end_date)), 'YYYY-MM') "expiration_month", count(offer.*) "non-national_offers" from marketplace_market market, marketplace_offer offer, marketplace_offer_markets offermarkets where offermarkets.offer_id = offer.id and offermarkets.market_id = market.id and offer.status = '%(status)s' and offer.available_end_date > now() and offer.id not in (select offer_id from marketplace_offer_markets where market_id = 'f3413ab5b96611e09a38c42c033b32fa') and offer.private_offer = 'f' group by 1,2,3 order by 1,3;
+
+    """
+    cols, resultset = throw_sql(sql % {'status':status},DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'market'                     ,'l': 'TOM Market'               ,'u': None              ,'w': '200px'}
+        ,{'k':'current_status'                  ,'l': 'Offer Status'          ,'u': None              ,'w':'100px'}
+	,{'k':'expiration_month'	,'l': 'Expiration Month'	,'u': None 		,'w': '100px'}
+        ,{'k':'non-national_offers'                ,'l': 'Non-National Offer Count'  ,'u': 'integer'         ,'w': '150px'}
+
+    ]
+
+    context = {};
+    TITLE='TOM LOCAL INVENTORY LEVELS (non national offers, in approved status, with private_offer set to false)'; SUBTITLE= '';
+    searchform = """
+        <form method='POST' action='%s'> <!--- target is me -->
+            <p><label id='search_label' for='status_input'><span>Date: </span></label>
+            <input id='status_input' name='status' value='%s'>
+            <button type='submit'>Search</button></p>
+        </form>
+    """%('/cumulative_tom_sales_by_site/',status) #note: hardcoded url!
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_local_inventory-v1'});
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+
+def tom_local_inventory(status='approved'):
+    status_in = request.args.get('status')
+    if status_in:
+        status = status_in
+
+    sql = """
+ select market.name "market", offer.status "current_status", to_char(date(date_trunc('month', offer.available_end_date)), 'YYYY-MM') "expiration_month", count(offer.*) "non-national_offers" from marketplace_market market, marketplace_offer offer, marketplace_offer_markets offermarkets where offermarkets.offer_id = offer.id and offermarkets.market_id = market.id and offer.status = '%(status)s' and offer.available_end_date > now() and offer.id not in (select offer_id from marketplace_offer_markets where market_id = 'f3413ab5b96611e09a38c42c033b32fa') and offer.private_offer = 'f' group by 1,2,3 order by 1,3;
+
+    """
+    cols, resultset = throw_sql(sql % {'status':status},DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'market'                     ,'l': 'TOM Market'               ,'u': None              ,'w': '200px'}
+        ,{'k':'current_status'                  ,'l': 'Offer Status'          ,'u': None              ,'w':'100px'}
+	,{'k':'expiration_month'	,'l': 'Expiration Month'	,'u': None 		,'w': '100px'}
+        ,{'k':'non-national_offers'                ,'l': 'Non-National Offer Count'  ,'u': 'integer'         ,'w': '150px'}
+
+    ]
+
+    context = {};
+    TITLE='TOM LOCAL INVENTORY LEVELS (non national offers, in approved status, with private_offer set to false)'; SUBTITLE= '';
+    searchform = """
+        <form method='POST' action='%s'> <!--- target is me -->
+            <p><label id='search_label' for='status_input'><span>Date: </span></label>
+            <input id='status_input' name='status' value='%s'>
+            <button type='submit'>Search</button></p>
+        </form>
+    """%('/cumulative_tom_sales_by_site/',status) #note: hardcoded url!
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_local_inventory-v1'});
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+def tom_offers_per_market():
+    sql = """
+	with offermarkets as (
+	    select m.label from 
+	        marketplace_offer o, marketplace_offer_markets om, marketplace_market m 
+		    where (om.market_id = m.id) and (om.offer_id = o.id) 
+		        and (not o.available_start_date > current_date) 
+			and (not o.available_end_date < current_date) 
+			and (o.status = 'approved')  
+			and (private_offer = false) 
+			and (o.id not in (
+			    select o.id from 
+				marketplace_offer o, marketplace_offer_markets om 
+				    where (om.offer_id = o.id) 
+					and (om.market_id = 'f3413ab5b96611e09a38c42c033b32fa')) )) 
+	select m.label, count(offermarkets.name) from 
+	    marketplace_market m left join offermarkets on (offermarkets.label = m.label) 
+		where m.label != 'USA' 
+	group by m.label 
+	order by m.label;
+    """
+    cols, resultset = throw_sql(sql, DB_TOM); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'label'                     ,'l': 'TOM Market'               ,'u': None              ,'w': '200px'}
+	,{'k':'count'                ,'l': 'Offer Count'  ,'u': 'integer'         ,'w': '150px'}
+
+    ]
+
+    context = {};
+    TITLE='TOM OFFER COUNT PER MARKET'; SUBTITLE= '';
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_offers_per_market-v1'});
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
+
+def tom_detailed_inventory_non_national():
+    sql = """
+	select m.name market, o.name offer, date(o.available_start_date) ::varchar "start_date", date(o.available_end_date) ::varchar "end_date", a.name agency, avg(p.price)::float price, avg(p.ask_price)::float ask_price, avg(p.marketplace_ask)::float marketplace_ask
+  	    from marketplace_offer o, marketplace_offer_markets om, marketplace_market m, marketplace_agency a, marketplace_product p
+  		where (om.market_id = m.id) and (om.offer_id = o.id)  and (a.id = o.agency_id) and (p.offer_id = o.id)
+      		    and (not o.available_start_date > current_date) and (not o.available_end_date < current_date) 
+      		    and (o.status = 'approved')  and (private_offer = false) 
+     		    and (o.id not in (select o.id from marketplace_offer o, marketplace_offer_markets om where (om.offer_id = o.id) and (om.market_id = 'f3413ab5b96611e09a38c42c033b32fa')) )
+        group by market, offer, available_start_date, available_end_date, agency
+        order by market, offer;
+    """
+    cols, resultset = throw_sql(sql ,DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'market'                     ,'l': 'TOM Market'               ,'u': None              ,'w': '200px'}
+        ,{'k':'offer'                  ,'l': 'Offer'          ,'u': None              ,'w':'100px'}
+	,{'k':'start_date'	,'l': 'Available Start Date'	,'u': 'date' 		,'w': '100px'}
+	,{'k':'end_date'	,'l': 'Available End Date'	,'u': 'date' 		,'w': '100px'}
+        ,{'k':'agency'                  ,'l': 'Agency'          ,'u': None              ,'w':'100px'}
+  	,{'k':'price'                	,'l': 'Price'  ,'u': 'currency'         ,'w': '150px'}
+  	,{'k':'ask_price'               ,'l': 'Asking Price'  ,'u': 'currency'         ,'w': '150px'}
+  	,{'k':'marketplace_ask'         ,'l': 'Marketplace Asking Price'  ,'u': 'currency'         ,'w': '150px'}
+    ]
+    context = {};
+    TITLE='TOM DETAILED INVENTORY LEVELS (non national offers)'; SUBTITLE= '';
+
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_detailed_inventory_non_national-v1'});
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
 def credit_summary_by_month(rdate='2012-01-01'):
     rdate_in = request.args.get('rdate')
@@ -45,7 +423,6 @@ def credit_summary_by_month(rdate='2012-01-01'):
 	  referred_params.append("rdate=" + row['date']) 
           row['share_credits_granted'] = {'linkto':url_for('credits_granted_by_date'), 'params':referred_params, 'show':'$ ' + str(int(row['share_credits_granted']))}
           row['new_account_credits_granted'] = {'linkto':url_for('credits_granted_by_date'), 'params':referred_params, 'show':'$ ' + str(int(row['new_account_credits_granted']))}
-
     COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
 #TODO: add in tool-tip, and link-logic.
         {'k':'date'        ,'l': 'Activity Date'    ,'u': 'date'            ,'w': '80px'}
@@ -395,6 +772,69 @@ def agent_sales(yyyymm = None):
     	else: #assume format == 'grid':
 		return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, #SUBTITLE=SUBTITLE, 
 			SELECTOR=SELECTOR);
+
+def tom_breakdown(offer_id='1'):
+        """
+                Show detailed metrics on a specific offer
+        """
+
+        offer_in = request.args.get('offer_id')
+        if offer_in:
+           offer_id = offer_in
+
+
+        TITLE='TOM BREAKDOWN REPORT'
+        metrics = {}
+        sql = """
+                select offer.name "name", offer.id "id", offer.available_start_date, offer.available_end_date from marketplace_offer offer where offer.status NOT in ('draft','archived') order by offer.available_start_date desc limit 5000;
+        """
+        sql = sql % {}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        offer_list = []
+        for row in resultset:
+                offer_list.append([row[0] + " - (" + str(row[2]) + " - " + str(row[3]) + ")",row[1]])
+
+        metrics['offer_list'] = offer_list
+
+        sql = """
+                 select product.id "product", agency.name "agency", offer.headline "headline", advertiser.name "advertiser", offer.available_start_date, offer.available_end_date, offer.processing_fee_percentage, offer.marketplace_commission, product.title, product.price, product.ask_price, product.marketplace_ask, product.advertiser_return from marketplace_product product, marketplace_agency agency, marketplace_offer offer, marketplace_advertiser advertiser where offer.agency_id = agency.id and offer.id = product.offer_id and advertiser.id = offer.advertiser_id and offer.id = '%(offer_id)s';
+        """
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['name'] = None
+        if len(ROWS) == 0:
+                metrics['offer_products'] = {}
+		return render_template("tom_breakdown.html", **metrics);
+        metrics['available_start_date'] = ROWS[0]['available_start_date']
+        metrics['available_end_date'] = ROWS[0]['available_end_date']
+        metrics['headline'] = ROWS[0]['headline']
+        metrics['advertiser'] = ROWS[0]['advertiser']
+        metrics['processing_fee_percentage'] = ROWS[0]['processing_fee_percentage']
+        metrics['marketplace_commission'] = ROWS[0]['marketplace_commission']
+	metrics['offer_products'] = {}
+	for row in ROWS:
+	  metrics['offer_products'][row['product']] = {}
+          metrics['offer_products'][row['product']]['title'] = row['title']
+	  metrics['offer_products'][row['product']]['product_price'] = row['price']
+	  metrics['offer_products'][row['product']]['product_ask_price'] = row['ask_price']
+	  metrics['offer_products'][row['product']]['product_marketplace_ask'] = row['marketplace_ask']
+	  metrics['offer_products'][row['product']]['advertiser_return'] = row['advertiser_return']	
+
+
+        sql = """
+	select promotion.id, publisher.name "publisher_name", promotion.start_date, promotion.end_date, promotion.status, product.title, inventory.maximum_quantity, inventory.bid_price, inventory.marketplace_bid, inventory.bid_price - inventory.marketplace_bid "tom_fee", count(voucher.*) "total_sold" from marketplace_product product, marketplace_promotion promotion, marketplace_promotioninventory inventory, marketplace_publisher publisher, marketplace_voucher voucher where promotion.id = inventory.promotion_id and voucher.product_id = inventory.id and promotion.publisher_id = publisher.id and product.id = inventory.product_id and promotion.offer_id =  '%(offer_id)s' group by 1,2,3,4,5,6,7,8,9,10; 
+	"""
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['promotions'] = ROWS
+
+
+
+        return render_template("tom_breakdown.html", **metrics);
+
+
 def offer_metrics(offer_id='1'):
 	"""
 		Show detailed metrics on a specific offer
@@ -407,7 +847,7 @@ def offer_metrics(offer_id='1'):
 	TITLE='OFFER METRICS REPORT'
 	metrics = {} 
 	sql = """
-		select offer.headline "name", offer.id "id", publisher.name, offer.start_date from core_offer offer, core_publisher publisher where offer.end_date < now() and publisher.id = offer.publisher_id order by offer.end_date desc limit 5000;
+		select offer.headline "name", offer.id "id", publisher.name, offer.start_date from core_offer offer, core_publisher publisher where offer.status in ('published','closed') and publisher.id = offer.publisher_id order by offer.end_date desc limit 5000;
 	"""
 	sql = sql % {}
 	cols, resultset = throw_sql(sql, DB_PBT)
@@ -418,7 +858,7 @@ def offer_metrics(offer_id='1'):
 	metrics['offer_list'] = offer_list
 	
 	sql = """
-		 select publisher.name "publisher", offer.headline "name", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross", avg(transaction.amount)::float "avg_order_amount", count(distinct(item.id)) "voucher_count", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction, core_publisher publisher where item.offer_id = offer.id and offer.publisher_id = publisher.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3,4; 
+		 select publisher.name "publisher", offer.headline "name", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.account_id)) "unique_buyers", sum(item.amount)::float "gross", avg(transaction.amount)::float "avg_order_amount", count(distinct(item.id)) "voucher_count", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction, core_publisher publisher where item.offer_id = offer.id and offer.publisher_id = publisher.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3,4; 
 	"""
 	sql = sql % {'offer_id':offer_id}
 	cols, resultset = throw_sql(sql, DB_PBT)
@@ -437,7 +877,7 @@ def offer_metrics(offer_id='1'):
 	metrics['publisher'] = ROWS[0]['publisher']
 
 	sql = """
-	select offer.name "offer", payment._polymorphic_identity "ptype", sum(payment.amount)::float "amount" from  core_offer offer, core_transaction transaction, core_payment payment, core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id and transaction.id = payment.transaction_id group by 1,2;
+	select payment._polymorphic_identity "ptype", sum(payment.amount)::float "amount" from core_payment payment where payment.transaction_id in (select transaction.id from core_transaction transaction, core_offer offer, core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id) group by 1;
 	"""
         sql = sql % {'offer_id':offer_id}
         cols, resultset = throw_sql(sql, DB_PBT)
