@@ -1,7 +1,6 @@
 from sqlhelpers import *
 from flask import Flask, url_for, render_template, g, session, request, redirect, abort
 
-from utils import csv_out
 
 def subscriptions(id='None'):
 	""" 
