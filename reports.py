@@ -1,7 +1,7 @@
 from sqlhelpers import *
 from flask import Flask, url_for, render_template, render_template_string, g, session, request, redirect, abort
 
-from utils import csv_out, csv_out_simple, json_out, gjson_out
+from utils import csv_out_simple, json_response, data_to_json, gjson_response, data_to_gjson
 
 from utils import cache_report_request, cache_save_dataset, cache_fetch_dataset
 import datetime 
@@ -69,7 +69,7 @@ def credit_summary_by_month(rdate='2012-01-01'):
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='credit_summary_by_month-v1');
+        return csv_out_simple(ROWS, COLS, dict(REPORTSLUG='credit_summary_by_month-v1'));
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -155,7 +155,7 @@ def credits_granted_by_date(rdate='2012-01-01'):
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='credit_grants_by_date-v1');
+        return csv_out_simple(ROWS, COLS, dict(REPORTSLUG='credit_grants_by_date-v1'));
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -307,11 +307,11 @@ def dealcats(id='test'):
 
     format = request.args.get('format','grid');
     if format == 'csv':
-	return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='offer_cat-v1');	
+	return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='offer_cat-v1'));	
     if format == 'gjson':
-	return gjson_out(COLS=COLS, ROWS=ROWS);
+	return gjson_response(data_to_gjson(ROWS,COLS))
     if format == 'djson':
-	return djson_out(COLS=COLS, ROWS=ROWS);
+	return djson_out(ROWS,COLS);
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, #SUBTITLE=SUBTITLE,
 		  SELECTOR=SELECTOR, BACK=url_for('listpubs') );
@@ -330,6 +330,7 @@ def agent_sales(yyyymm = None):
 			" -- MTD" if monthkey == todaykey else "")
 		pick_month.append((monthkey,monthvalue))
 		month = month + datetime.timedelta(days=31) 
+		month = month - datetime.timedelta(month.day - 1) #go to first of month 
 
 	yyyymm = yyyymm or todaykey #pick current as default	
 	SELECTOR = {
@@ -390,7 +391,7 @@ def agent_sales(yyyymm = None):
 
     	format = request.args.get('format','grid');
     	if format == 'csv':
-		return csv_out(COLS=COLS, ROWS=ROWS, REPORTSLUG='agent_sales-v1');	
+		return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='agent_sales-v1'));	
     	else: #assume format == 'grid':
 		return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, #SUBTITLE=SUBTITLE, 
 			SELECTOR=SELECTOR);
@@ -592,11 +593,11 @@ select ag_acc.fullname agent, ad.name merchant, p.name publisher, o.status, o.st
                ,{'k':'qty' 		,'l':'qty'           ,'u': 'integer'              ,'w': '40px'}
                ,{'k':'gross' 		,'l':'gross'         ,'u': 'currency'              ,'w': '60px'}
 	]
-	return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
-
-
-
-
+    	format = request.args.get('format','grid');
+    	if format == 'csv':
+		return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='offers-detail'));	
+    	else: #assume format == 'grid':
+		return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
 def engagement(id = 'test'):
 	"""
