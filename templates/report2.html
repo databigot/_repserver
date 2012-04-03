@@ -20,7 +20,12 @@
         }),
         structure: [[
         {% for col in COLS %}
-            {field: '{{ col.k }}', name: '{{ col.l }}', width: '{{ col.w }}'
+            {field: '{{ col.k }}', name: '{{ col.l }}', width: 
+		{% if col.w is defined %}
+			'{{ col.w }}'
+		{% elif col.x is defined %} 
+			'{{ col.x|length }}em'
+		{% endif %}
             {% if col.u == 'integer' %}, 			classes: 'col-align-right', formatter: formatters.integer
             {% elif col.u == 'percentage' %},	 	classes: 'col-align-right', formatter: formatters.percentage
             {% elif col.u == 'currency' %}, 		classes: 'col-align-right',formatter: formatters.currency
