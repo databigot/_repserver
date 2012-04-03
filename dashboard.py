@@ -16,6 +16,8 @@ from pymongo import Connection, ReadPreference
 import math
 from datetime import date, timedelta
 
+##from long_running import ui_invoke_long_running
+
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
@@ -93,7 +95,8 @@ def index():
 		,{'name': 'Daily Credit Grants Report'		,'url': url_for('credits_granted_by_date',rdate='2012-01-01')}
 		,{'name': 'Monthly Credit Summary Report'	,'url': url_for('credit_summary_by_month',rdate='2012-01-01')}
 		,{'name': 'Sales Report by Agent'		,'url': url_for('agent_sales')}
-		,{'name': 'Transaction Detail for Offers'	,'url': url_for('txn_detail')}
+#		,{'name': 'Transaction Detail for Offers'	,'url': url_for('txn_detail')}
+#		,{'name': 'Long Running Queries'		,'url': url_for('ui_invoke_long_running')}
 		] 
 	return render_template("index.html", REPORTS=reports);
 
@@ -338,13 +341,11 @@ def restrict_to(*whitelist): #
    return decorator
 
 
-from reports import txn_detail
-txn_detail = app.route("/txn.<format>/<publisher>")(txn_detail)
-txn_detail = app.route("/txn.<format>")(txn_detail)
-txn_detail = app.route("/txn/<publisher>")(txn_detail)
-txn_detail = app.route("/txn")(txn_detail)
-
-
+#from reports import txn_detail
+#txn_detail = app.route("/txn.<format>/<publisher>")(txn_detail)
+#txn_detail = app.route("/txn.<format>")(txn_detail)
+#txn_detail = app.route("/txn/<publisher>")(txn_detail)
+#txn_detail = app.route("/txn")(txn_detail)
 
 from reports import engagement 
 engagement = restrict_to("TEST1","TEST2")(engagement)
@@ -364,6 +365,8 @@ subs = app.route("/subs")(subscriptions)
 from f_and_m_pages import gen_skus_wform 
 gen_skus_wform = app.route("/volusion", methods=['GET', 'POST'] )(gen_skus_wform)
 
+#from long_running import ui_invoke_long_running
+#ui_invoke_long_running = app.rount('/long_running/')(ui_invoke_long_running)
 
 @app.route("/cctrans")
 def cctrans():
