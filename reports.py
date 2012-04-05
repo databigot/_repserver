@@ -138,7 +138,8 @@ select distinct(referral.transaction_id) "transaction_id", channel.name "channel
 
       format = request.args.get('format','grid');
       if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'hasoffers_detail-v1'});
+
+        return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='hasoffers_detail-v1'));
       else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -179,7 +180,7 @@ def tom_activity_by_agency():
     searchform = ''
     format = request.args.get('format','grid');
     if format == 'csv':
- 	return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_activity_by_agency-v1'});
+	return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='tom_activity_by_agency-v1'));
 
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
@@ -210,7 +211,8 @@ def tom_activity_by_publisher():
     searchform = ''
     format = request.args.get('format','grid');
     if format == 'csv':
-       return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_activity_by_publisher-v1'});
+    	return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='tom_activity_by_publisher-v1'));
+ 
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -244,8 +246,8 @@ select site.name "site", voucher.status "status", count(voucher.*) "vouchers" fr
 
     format = request.args.get('format','grid');
     if format == 'csv':
+	return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='tom_cumulative_vouchers-v1'));
 
-        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_cumulative_vouchers-v1'});
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -280,7 +282,8 @@ def tom_local_inventory(status='approved'):
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_local_inventory-v1'});
+	return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='tom_local_inventory-v1'));
+
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -316,7 +319,8 @@ def tom_local_inventory(status='approved'):
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_local_inventory-v1'});
+	return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='tom_local_inventory-v1'));
+
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
@@ -354,7 +358,8 @@ def tom_offers_per_market():
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_offers_per_market-v1'});
+        return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='tom_offers_per_market-v1'));
+ 
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
@@ -386,7 +391,8 @@ def tom_detailed_inventory_non_national():
 
     format = request.args.get('format','grid');
     if format == 'csv':
-        return csv_out(COLS=COLS, ROWS=ROWS, CONTEXT={'REPORTSLUG':'tom_detailed_inventory_non_national-v1'});
+   	return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='tom_detailed_inventory_non_national-v1'));
+ 
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
