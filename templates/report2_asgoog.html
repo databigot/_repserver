@@ -1,46 +1,48 @@
 {% extends 'base.html' %}
 
 
-{% macro render_me(COLS, ROWS) -%}
-<script type="text/javascript">
-    dojo.require("dojox.grid.DataGrid");
-    dojo.require("dojo.data.ItemFileWriteStore");
+{% macro render_me(grid_container_id, COLS, ROWS) -%}
 
- dojo.ready(function() {
-    var report = new dojox.grid.DataGrid({
-        autoHeight: 16,
-        selectionMode: 'none',
-        store: new dojo.data.ItemFileReadStore({
-            data: {items: [
-            {% for row in ROWS %}
-                {{ row | tojson | safe }}{% if not loop.last %},{% endif %}
-            {% endfor %}
-            ]},
-            hierarchical: false
-        }),
-        structure: [[
-        {% for col in COLS %}
-            {field: '{{ col.k }}', name: '{{ col.l }}', width: 
-		{% if col.w is defined %}
-			'{{ col.w }}'
-		{% elif col.x is defined %} 
-			'{{ col.x|length }}em'
-		{% endif %}
-            {% if col.u == 'integer' %}, 			classes: 'col-align-right', formatter: formatters.integer
-            {% elif col.u == 'percentage' %},	 	classes: 'col-align-right', formatter: formatters.percentage
-            {% elif col.u == 'currency' %}, 		classes: 'col-align-right',formatter: formatters.currency
-            {% elif col.u == 'currency-negative' %}, classes: 'col-align-right', formatter: formatters.currency_negative
-            {% elif col.u == 'percent-decimal' %}, classes: 'col-align-right', formatter: formatters.percent_decimal
-            {% elif col.u == 'percent' %}, classes: 'col-align-right', formatter: formatters.percent
-            {% elif col.u == 'currency-long' %}, classes: 'col-align-right', formatter: formatters.currency_long
-			{% elif col.u == 'linkto' %}, formatter: formatters.jelinkto
-            {% endif %}
-            },
-        {% endfor %}
-        ]]
-    }, dojo.byId('report-grid'));
-	report.startup();
-   });
+<script type="text/javascript">
+	var visualization;
+	var dataTable = new google.visualization.DataTable();
+
+	{% for col in COLS %}
+		dataTable.addColumn( {
+			{% if col.t == None %}
+				type: 'string', label: '{{ col.l }}'});
+			{% elif col.t == 'date' %} {# HACK!! #}
+				type: 'string', label: '{{ col.l }}'});
+			{% else %}
+				type: '{{ col.t }}', label: '{{ col.l }}'});
+			{% endif %}
+	{% endfor %}
+
+	{% for row in ROWS %}
+		dataTable.addRow( [
+			{% for col in COLS %}
+				{% if col.t == 'number' %}
+					{{ row[col.k] | safe }} {% if not loop.last %}, {% endif %}
+				{% elif col.t == 'date' %} {# HACK!! #}
+					"{{ row[col.k] | safe }}" {% if not loop.last %}, {% endif %}
+				{% else %}
+					"{{ row[col.k] | safe }}" {% if not loop.last %}, {% endif %}
+				{% endif %}
+			{% endfor %}
+			]);
+	{% endfor %}
+
+	// draw the actual table
+	function drawVisualization() {
+		var table = new google.visualization.Table( document.getElementById('report-grid')); //HACK:{{ grid_container_id }}'));
+		table.draw(dataTable, { allowHtml: true });
+	}
+	
+	// on ready, do draw
+	google.setOnLoadCallback(drawVisualization);
+	
+
+
  $(function() {
 	$('#download-csv-link').click(function(event) {
 		
@@ -57,7 +59,8 @@
 	<div class='report-header'>
 	</div>
 	<div id='reports-grid-container' class='grid-container clear'>
-		<div id='report-grid' ></div>
+		<div id='report-grid' ></div> 
+		{% set GRID_ID = 'report-grid' %}
 	</div>
 {% else %}
 	<div class='no-reports'>
@@ -68,16 +71,16 @@
 
 {% block js_libs %}
 {{ super() }}
-    <script src="http://ajax.googleapis.com/ajax/libs/dojo/1.7.1/dojo/dojo.js" type="text/javascript"></script>
+	<script type="text/javascript" src="http://www.google.com/jsapi"></script>
+	<script type="text/javascript">
+		google.load('visualization', '1', {packages: ['table']});
+	</script>
     <script src="/static/js/utils.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.js"> </script>
 {% endblock js_libs %}
 
 {% block styles %}
 {{ super() }}
-<link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/dojo/1.7.1/dojo/resources/dojo.css"> 
-<link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/dojo/1.7.1/dojox/grid/resources/Grid.css"> 
-<link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/dojox/grid/resources/tundra/Grid.css">
 
  <style type="text/css">
      /*Grid need a explicit width/height by default*/
@@ -163,7 +166,9 @@ tr {
 <br />
 <a href id='download-csv-link'>Download as CSV</a>
 
-{{ render_me( COLS,ROWS) }}
+{{ render_me( GRID_ID, COLS,ROWS) }}
+{# note: grid_ID is set inside this template,NOT passed in #}
+
 <br />
 
 {% endblock page_content %}

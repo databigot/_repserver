@@ -16,7 +16,11 @@ ACCESS_GROUPS = { #use these to whitelist a report to only certain people: !!ple
     ,'TEST2': ['jeremy.elliott@tippr.com']		
 }
 
+#S3 Stuff
+S3_ACCESS_KEY = "AKIAJIEVGZJ2RWZPUGUA"
+S3_SECRET_KEY = "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"
 
+S3_REPORT_BUCKET = 'data.kashless.com'
 
 
 
