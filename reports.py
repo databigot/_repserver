@@ -24,7 +24,7 @@ def hasoffers_transaction_detail(publisher_id=1,month_start='2012-03-01',publish
 
       sql = """
 
-select distinct(referral.transaction_id) "transaction_id", referral.providerid "hasoffers_transaction_id", referral.source "affiliate",(transaction.occurrence at time zone 'pst')::varchar  "tippr_timestamp", transaction.status "tippr_status", transaction.amount::varchar "tippr_amount", offer.name "offer_name"  from core_referral referral, core_publisher publisher, core_transaction transaction left join core_item item on (item.transaction_id = transaction.id) left join core_offer offer on (offer.id = item.offer_id) where date_trunc('month', date(referral.occurrence at time zone 'pst')) = '%(month_start)s' and referral.event='offer-purchase' and referral.provider='hasoffers' and transaction.id = referral.transaction_id and publisher.id = transaction.publisher_id and publisher.name = '%(publisher)s' order by 4;
+select distinct(referral.transaction_id) "transaction_id", channel.name "channel", referral.providerid "hasoffers_transaction_id", referral.source "affiliate",(transaction.occurrence at time zone 'pst')::varchar  "tippr_timestamp", transaction.status "tippr_status", transaction.amount::varchar "tippr_amount", offer.name "offer_name"  from core_referral referral, core_publisher publisher, core_channel channel, core_transaction transaction left join core_item item on (item.transaction_id = transaction.id) left join core_offer offer on (offer.id = item.offer_id) where transaction.channel_id = channel.id and date_trunc('month', date(referral.occurrence at time zone 'pst')) = '%(month_start)s' and referral.event='offer-purchase' and referral.provider='hasoffers' and transaction.id = referral.transaction_id and publisher.id = transaction.publisher_id and publisher.name = '%(publisher)s' order by 4;
 
       """
       cols, resultset = throw_sql(sql % {'month_start':month_start,'publisher':publisher},DB_PBT    ); ##bind in the input p
@@ -77,6 +77,7 @@ select distinct(referral.transaction_id) "transaction_id", referral.providerid "
 
       COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
         {'k':'transaction_id'           	,'l': 'Tippr Transaction ID'            ,'u': None              ,'w': '200px'}
+	,{'k':'channel'				,'l': 'Channel'				,'u': None		,'w': '200px'}
         ,{'k':'hasoffers_transaction_id'        ,'l': 'HasOffers Transaction ID'        ,'u': None              ,'w':'200px'}
         ,{'k':'affiliate'                	,'l': 'Affiliate'  			,'u': None     		,'w': '150px'}
 	,{'k':'tippr_timestamp'			,'l': 'Tippr Timestamp'			,'u': 'date'	,'w':'200px'}
@@ -824,7 +825,7 @@ def tom_breakdown(offer_id='1'):
 
 
         sql = """
-	select promotion.id, publisher.name "publisher_name", promotion.start_date, promotion.end_date, promotion.status, product.title, inventory.maximum_quantity, inventory.bid_price, inventory.marketplace_bid, inventory.bid_price - inventory.marketplace_bid "tom_fee", count(voucher.*) "total_sold" from marketplace_product product, marketplace_promotion promotion, marketplace_promotioninventory inventory, marketplace_publisher publisher, marketplace_voucher voucher where promotion.id = inventory.promotion_id and voucher.product_id = inventory.id and promotion.publisher_id = publisher.id and product.id = inventory.product_id and promotion.offer_id =  '%(offer_id)s' group by 1,2,3,4,5,6,7,8,9,10; 
+	select promotion.id, publisher.name "publisher_name", promotion.start_date, promotion.end_date, promotion.status, product.title, inventory.maximum_quantity, inventory.bid_price, inventory.marketplace_bid, inventory.bid_price - inventory.marketplace_bid "tom_fee", count(voucher.*) "total_sold" from marketplace_product product, marketplace_promotion promotion, marketplace_promotioninventory inventory, marketplace_publisher publisher, marketplace_voucher voucher where promotion.id = inventory.promotion_id and voucher.status = 'assigned' and voucher.product_id = inventory.id and promotion.publisher_id = publisher.id and product.id = inventory.product_id and promotion.offer_id =  '%(offer_id)s' group by 1,2,3,4,5,6,7,8,9,10; 
 	"""
         sql = sql % {'offer_id':offer_id}
         cols, resultset = throw_sql(sql, DB_TOM)

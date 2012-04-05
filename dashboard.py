@@ -101,6 +101,7 @@ def index():
 		,{'name': 'TOM local inventory levels'		,'url': url_for('tom_local_inventory',status='approved')}
 		,{'name': 'TOM offers per market'		,'url': url_for('tom_offers_per_market')}
 		,{'name': 'TOM Inventory of Non-National Offers'		,'url': url_for('tom_detailed_inventory_non_national')}
+		 ,{'name': 'TOM Offer Breakdown'                ,'url': url_for('tom_breakdown')}
 		,{'name': 'Hasoffers transaction detail by publisher/date', 'url': url_for('hasoffers_transaction_detail',month_start='2012-03-01',publisher='frugaling')}
 		] 
 	return render_template("index.html", REPORTS=reports);
@@ -325,6 +326,10 @@ tom_local_inventory = app.route("/tom_offers_per_market/", methods=['GET','POST'
 from reports import tom_detailed_inventory_non_national 
 tom_local_inventory = app.route("/tom_detailed_inventory_non_national/<status>")(tom_detailed_inventory_non_national)
 tom_local_inventory = app.route("/tom_detailed_inventory_non_national/", methods=['GET','POST'])(tom_detailed_inventory_non_national)
+
+from reports import tom_breakdown
+tom_breakdown = app.route("/tom_breakdown/", methods=['GET','POST'])(tom_breakdown)
+
 
 from reports import credits_granted_by_date
 credits_granted_by_date = app.route("/credits_granted_by_date/<rdate>")(credits_granted_by_date)
