@@ -193,16 +193,28 @@ def tom_activity_by_publisher():
 
 
     sql = """
-     select publisher.name "publisher", count(distinct(promotions_created.id)) "promotions_created", count(distinct(promotions_run.id)) "promotions_run", count(distinct(voucher.id)) "vouchers_sold" from marketplace_promotion promotions_created left join marketplace_promotion promotions_run on (promotions_created.id = promotions_run.id and promotions_run.status in ('closed','finalized')) left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id), marketplace_publisher publisher where publisher.id = promotions_created.publisher_id group by 1;
+ select publisher.name "publisher", count(distinct(promotions_created.id)) "promotions_created", count(distinct(promotions_run.id)) "promotions_run", count(distinct(voucher.id)) "vouchers_sold", sum(product.price)::integer "gross_sales",max(promotions_run.end_date)::varchar "last_promotion_ended" from marketplace_promotion promotions_created left join marketplace_promotion promotions_run on (promotions_created.id = promotions_run.id and promotions_run.status in ('closed','finalized')) left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher where publisher.id = promotions_created.publisher_id group by 1;
 """
     cols, resultset = throw_sql(sql,DB_TOM    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
-    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
-        {'k':'publisher'                     ,'l': 'Publisher'               ,'u': None              ,'w': '120px'}
-        ,{'k':'promotions_created'              ,'l': 'Promotions Created','u': 'integer'       ,'w': '80px'}
-        ,{'k':'promotions_run'                  ,'l': 'Promotions Run','u': 'integer'           ,'w': '80px'}
-        ,{'k':'vouchers_sold'                   ,'l': 'Vouchers Sold','u': 'integer'            ,'w': '80px'}
+    for row in ROWS:
+	  params = []
+	  params.append("publisher=" + row['publisher'])
 
+          row['publisher'] = {'linkto':url_for('tom_publisher_promotions'), 'params':params, 'show':row['publisher']}
+	  if row['gross_sales'] > 1 and row['promotions_run'] > 1:
+		row['gross_per_promotion'] = row['gross_sales']/row['promotions_run'] 
+	  if row['vouchers_sold'] > 1 and row['promotions_run'] > 1:
+		row['vouchers_per_promotion'] = row['vouchers_sold']/row['promotions_run']
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'publisher'                     ,'l': 'Publisher'               ,'u': 'linkto'              ,'w': '200px'}
+        ,{'k':'promotions_created'              ,'l': 'Promotions Created','u': 'integer'       ,'w': '120px'}
+        ,{'k':'promotions_run'                  ,'l': 'Promotions Run','u': 'integer'           ,'w': '120px'}
+        ,{'k':'vouchers_sold'                   ,'l': 'Vouchers Sold','u': 'integer'            ,'w': '120px'}
+	,{'k':'gross_sales'			,'l': 'Gross Sales','u': 'integer'		,'w': '120px'}
+	,{'k':'gross_per_promotion'		,'l': 'Gross/Promotion','u': 'integer'		,'w': '120px'}
+	,{'k':'vouchers_per_promotion'		,'l': 'Vouchers/Promotion','u': 'integer'	,'w': '150px'}
+	,{'k':'last_promotion_ended'		,'l': 'Last Promotion Run'	  ,'u': None		,'w': '150px'}
 
     ]
 
@@ -215,6 +227,42 @@ def tom_activity_by_publisher():
  
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+def tom_publisher_promotions(publisher='BigTip'):
+    # agency name
+    # promotions requested i
+    # promotions run
+    # vouchers sold
+    publisher_in = request.args.get('publisher')
+    if publisher_in:
+        publisher = publisher_in
+
+    sql = """
+select publisher.name "publisher", promotions_run.name "promotion", promotions_run.start_date::varchar "start", promotions_run.end_date::varchar "end", count(distinct(voucher.id)) "vouchers_sold", sum(product.price)::integer "gross_sales" from marketplace_promotion promotions_run left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher where publisher.id = promotions_run.publisher_id and publisher.name = '%(publisher)s' and promotions_run.status in ('closed','finalized') group by 1,2,3,4;
+    """
+    cols, resultset = throw_sql(sql % {'publisher':publisher},DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'publisher'                ,'l': 'Publisher'               ,'u': None              ,'w': '120px'}
+	,{'k':'start'			,'l': 'Start Date'		,'u': None 		,'w': '100px'}
+        ,{'k':'end'                     ,'l': 'End Date'      		,'u': None              ,'w': '100px'}
+        ,{'k':'promotion'               ,'l': 'Promotion'		,'u': None		,'w':'400px'}
+        ,{'k':'vouchers_sold'           ,'l': 'Vouchers Sold'		,'u': 'integer'            ,'w': '80px'}
+        ,{'k':'gross_sales'             ,'l': 'Gross Sales'		,'u': 'integer'              ,'w': '80px'}
+
+    ]
+
+    print sql
+    context = {};
+    TITLE='TOM PUBLISHER DETAIL'; SUBTITLE= '';
+    searchform = ''
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='tom_publisher_detail-v1'));
+
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
 
 def cumulative_tom_sales_by_site(status='assigned'):
     status_in = request.args.get('status')
