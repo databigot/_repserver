@@ -1,0 +1,95 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>
+      TOM Sales by Date
+    </title>
+    <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.17/themes/base/jquery-ui.css" type="text/css" media="all">
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js'></script>
+    <script src='https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js'></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+
+    <style type="text/css">
+    body, html {
+        font-family: arial;
+        font-size: 10pt;
+    }
+
+    h1 {
+	font-family: arial;
+        font-size:24pt;
+        margin-bottom:0pt;
+    }
+
+    h2 {
+       font-family: arial;
+       font-size: 16pt;
+       margin-top:8pt;
+       margin-bottom:10pt;
+    }
+    </style>
+
+  </head>
+
+  <body>
+
+
+
+<div class="demo" style='background-color:white;padding:30px'>
+
+<div class="ui-widget">
+
+</div><!-- End demo -->
+
+{% if details == None %}
+    <h3>No data found</h3>
+{% else %}  
+
+    <h2>TOM Summary</h2>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Date');
+	data.addColumn('number', 'Vouchers');
+        data.addColumn('number', 'Gross');
+        data.addRows([
+          {% for ts in details['data_summary'][::-1] %}
+            ['{{ts["promo_end"]}}', {{ts["vouchers_sold"]}},   {{ts["gross_sales"]}}],
+          {% endfor %}
+        ]);
+
+        var options = {
+          width: 875, height: 400,
+          title: 'TOM activity by date'
+        };
+
+        var chart = new google.visualization.LineChart(document.getElementById('tom_summary_chart'));
+        chart.draw(data, options);
+      }
+    </script>
+
+    <div id='tom_summary_chart'></div> 
+    <table border=1>
+    <th>End Date</th><th>Promotions</th><th>Vouchers Sold</th><th>Gross Sales</th>
+    {% for refrow in details['data_summary'] %}
+        <tr><td>{{refrow['promo_end']}}</td><td>{{refrow['promotions']}}</td><td>{{ refrow['vouchers_sold'] }}</td><td>{{ '{:.2f}'.format(refrow['gross_sales']) }}</td></tr>
+    {% endfor %}
+    </table>
+    <hr style='border:0px;height:100px;'/>
+
+    <h2>TOM Detail (all non-zero selling promotions)</h2>
+    <table border=1>
+    <th>End Date</th><th>Publisher</th><th>Promotion</th><th>Vouchers Sold</th><th>Gross Sales</th>
+    {% for refrow in details['data_detail'] %}
+        <tr><td>{{refrow['promo_end']}}</td><td>{{refrow['publisher']}}<td>{{refrow['promotion']}}</td><td>{{ refrow['vouchers_sold'] }}</td><td>{{ '{:.2f}'.format(refrow['gross_sales']) }}</td></tr>
+    {% endfor %}
+    </table>
+    <hr style='border:0px;height:100px;'/>
+
+
+{% endif %}
+  </body>
+</html>

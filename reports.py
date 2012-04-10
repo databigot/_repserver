@@ -9,6 +9,37 @@ import datetime
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
+def tom_sales_by_date():
+    sql = """
+    select promotions_run.end_date::varchar "promo_end", count(distinct(promotions_run.id)) "promotions", count(distinct(voucher.id)) "vouchers_sold", sum(product.price)::integer "gross_sales" from marketplace_promotion promotions_run left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher where publisher.id = promotions_run.publisher_id and promotions_run.end_date < date(now()) group by 1 having count(distinct(voucher.id)) > 1 order by promotions_run.end_date::varchar desc;  
+    """
+    cols, resultset = throw_sql(sql,DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+ 
+
+    metrics = {}
+    metrics['details'] = {}
+    metrics['details']['data_summary'] = ROWS
+    sql = """ 
+	select promotions_run.end_date::varchar "promo_end", publisher.name "publisher", promotions_run.name "promotion", count(distinct(voucher.id)) "vouchers_sold", sum(product.price)::integer "gross_sales" from marketplace_promotion promotions_run left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher where publisher.id = promotions_run.publisher_id and promotions_run.end_date < date(now()) group by 1,2,3 having count(distinct(voucher.id)) > 1 order by promotions_run.end_date::varchar desc;
+    """
+    cols, resultset = throw_sql(sql,DB_TOM    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics['details']['data_detail'] = ROWS
+
+    context = {};
+    TITLE='TOM SALES BY DATE'; SUBTITLE= '';
+    searchform = ''
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='tom_sales_by_date-v1'));
+
+    else: #assume format == 'grid':
+        TITLE='REFERRED TRANSACTION REPORT'; SUBTITLE= ' BY STATUS';
+
+        return render_template("tom_sales_by_date.html", **metrics);
+
+
 def hasoffers_transaction_detail(publisher_id=1,month_start='2012-03-01',publisher='frugaling'):
       import urllib
       #pull all the transactions for a given publisher and given month	

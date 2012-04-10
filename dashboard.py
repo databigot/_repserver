@@ -101,6 +101,7 @@ def index():
 #		,{'name': 'Long Running Queries'		,'url': url_for('ui_invoke_long_running')}
 
 		,{'name': 'TOM voucher sales by site' 		,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
+		,{'name': 'TOM sales by date'			,'url': url_for('tom_sales_by_date')}
 		,{'name': 'TOM activity by agency'		,'url': url_for('tom_activity_by_agency')}
 		,{'name': 'TOM activity by publisher'		,'url': url_for('tom_activity_by_publisher')}
 		,{'name': 'TOM publisher promotion detail'	,'url': url_for('tom_publisher_promotions',publisher='BigTip')}
@@ -314,6 +315,9 @@ account_detail = app.route("/account_detail/", methods=['GET','POST'])(account_d
 from reports import cumulative_tom_sales_by_site
 cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/<status>")(cumulative_tom_sales_by_site)
 cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/", methods=['GET','POST'])(cumulative_tom_sales_by_site)
+
+from reports import tom_sales_by_date
+tom_sales_by_date = app.route("/tom_sales_by_date/", methods=['GET','POST'])(tom_sales_by_date)
 
 from reports import tom_activity_by_agency
 tom_activity_by_agency = app.route("/tom_activity_by_agency/", methods=['GET','POST'])(tom_activity_by_agency)
