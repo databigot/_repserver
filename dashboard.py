@@ -96,7 +96,7 @@ def index():
 		,{'name': 'Daily Credit Grants Report'		,'url': url_for('credits_granted_by_date',rdate='2012-01-01')}
 		,{'name': 'Monthly Credit Summary Report'	,'url': url_for('credit_summary_by_month',rdate='2012-01-01')}
 		,{'name': 'Sales Report by Agent'		,'url': url_for('agent_sales')}
-
+		,{'name': 'PBT Channel Sales By Offer Type'     ,'url': url_for('pbt_channel_sales_by_offer_type', channel='tippr-honolulu', month='2012-03-01')}
 #		,{'name': 'Transaction Detail for Offers'	,'url': url_for('txn_detail')}
 #		,{'name': 'Long Running Queries'		,'url': url_for('ui_invoke_long_running')}
 
@@ -315,6 +315,10 @@ account_detail = app.route("/account_detail/", methods=['GET','POST'])(account_d
 from reports import cumulative_tom_sales_by_site
 cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/<status>")(cumulative_tom_sales_by_site)
 cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/", methods=['GET','POST'])(cumulative_tom_sales_by_site)
+
+from reports import pbt_channel_sales_by_offer_type
+pbt_channel_sales_by_offer_type = app.route("/pbt_channel_sales_by_offer_type/<channel>/<month>")(pbt_channel_sales_by_offer_type)
+pbt_channel_sales_by_offer_type = app.route("/pbt_channel_sales_by_offer_type/", methods=['GET','POST'])(pbt_channel_sales_by_offer_type)
 
 from reports import tom_sales_by_date
 tom_sales_by_date = app.route("/tom_sales_by_date/", methods=['GET','POST'])(tom_sales_by_date)

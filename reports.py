@@ -5,10 +5,37 @@ from utils import csv_out_simple, json_response, data_to_json, gjson_response, d
 
 from utils import cache_report_request, cache_save_dataset, cache_fetch_dataset
 import datetime 
-
+import re
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
+def pbt_channel_sales_by_offer_type(channel = 'tippr-honolulu', month = '2012-03-01'):
+    sql = """
+    select type, count(distinct(offer)) as offers, avg(vouchers)::float as v_p_d, avg(gross)::float as g_p_d, avg(net)::float as n_p_d, avg(net) / avg(gross)::float as rev_share from (select offer "offer", case when markets = '1' then 'local' else 'national' end "type", sum(vouchers) "vouchers", sum(gross) "gross", sum(payout) "payout", sum(net) "net" from (select offer.name "offer", count(distinct(oc.id)) "markets", count(distinct(item.id)) "vouchers", item.amount "price_point", count(distinct(item.id)) * item.amount "gross", count(distinct(item.id)) * case when product.marketplace_cost > 0 then product.marketplace_cost else product.payout end "payout", ((count(distinct(item.id)) * item.amount) - (count(distinct(item.id)) * case when product.marketplace_cost > 0 then product.marketplace_cost else product.payout end)) "net" from core_offer_channels oc, core_offer offer, core_item item, core_voucher voucher, core_product product where item.id = voucher.item_ptr_id and voucher.product_id = product.id and offer.id = oc.offer_id and item.offer_id = offer.id and item.transaction_id in (select distinct(transaction.id) from core_transaction transaction, core_account account, core_account_channels ac, core_channel channel where account.id = transaction.account_id and account.id = ac.account_id and channel.id = ac.channel_id and channel.name = '%(channel)s' and date_trunc('month',date(transaction.occurrence at time zone 'pst')) = '%(month)s') and voucher.status in ('pending','redeemed','purchased','issued') group by 1,item.amount,product.marketplace_cost, product.payout) as offer_detail group by 1,2 order by 6 desc) as offer_summary group by type;
+    """
+    cols, resultset = throw_sql(sql % {'channel':channel, 'month':month},DB_PBT    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'type'                   ,'l': 'Offer Type'               ,'u': None                   ,'w': '120px'}
+        ,{'k':'offers'                ,'l': 'Offer Count'              ,'u': 'integer'              ,'w': '100px'}
+        ,{'k':'v_p_d'                 ,'l': 'Vouchers/Deal'            ,'u': 'integer'              ,'w': '100px'}
+        ,{'k':'g_p_d'                 ,'l': 'Gross/Deal'               ,'u': 'currency'             ,'w': '100px'}
+        ,{'k':'n_p_d'                 ,'l': 'Net/Deal'                 ,'u': 'currency'             ,'w': '100px'}
+        ,{'k':'rev_share'             ,'l': 'Rev Share'                ,'u': 'percent'              ,'w': '100px'}
+
+    ]
+
+    context = {};
+    TITLE='PBT Sales by Offer Type (Local vs. National)'; SUBTITLE= '';
+    searchform = ''
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='pbt_channel_sales_by_offer_type_v1'));
+
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+
 def tom_sales_by_date():
     sql = """
     select promotions_run.end_date::varchar "promo_end", count(distinct(promotions_run.id)) "promotions", count(distinct(voucher.id)) "vouchers_sold", sum(product.price)::integer "gross_sales" from marketplace_promotion promotions_run left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher where publisher.id = promotions_run.publisher_id and promotions_run.end_date < date(now()) group by 1 having count(distinct(voucher.id)) > 1 order by promotions_run.end_date::varchar desc;  
