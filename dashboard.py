@@ -85,7 +85,21 @@ def create_or_login(resp):
 
 @app.route("/")
 def index():
-	reports = [
+	reports = {}
+
+        reports['MARKETPLACE REPORTS'] = [
+                {'name': 'TOM voucher sales by site'           ,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
+                ,{'name': 'TOM sales by date'                   ,'url': url_for('tom_sales_by_date')}
+                ,{'name': 'TOM activity by agency'              ,'url': url_for('tom_activity_by_agency')}
+                ,{'name': 'TOM activity by publisher'           ,'url': url_for('tom_activity_by_publisher')}
+                ,{'name': 'TOM publisher promotion detail'      ,'url': url_for('tom_publisher_promotions',publisher='BigTip')}
+                ,{'name': 'TOM local inventory levels'          ,'url': url_for('tom_local_inventory',status='approved')}
+                ,{'name': 'TOM offers per market'               ,'url': url_for('tom_offers_per_market')}
+                ,{'name': 'TOM Inventory of Non-National Offers'                ,'url': url_for('tom_detailed_inventory_non_national')}
+                ,{'name': 'TOM Offer Breakdown'                ,'url': url_for('tom_breakdown')}
+                ]
+
+	reports['PBT REPORTS'] = [
 		 {'name': "Purchases Report"			,'url': url_for('purchasereport')}
 		,{'name': "Offers Dashboard"			,'url': url_for('offers')}
 		,{'name': "Publishers Reports"			,'url': url_for('listpubs')}
@@ -96,21 +110,19 @@ def index():
 		,{'name': 'Daily Credit Grants Report'		,'url': url_for('credits_granted_by_date',rdate='2012-01-01')}
 		,{'name': 'Monthly Credit Summary Report'	,'url': url_for('credit_summary_by_month',rdate='2012-01-01')}
 		,{'name': 'Sales Report by Agent'		,'url': url_for('agent_sales')}
-		,{'name': 'PBT Channel Sales By Offer Type'     ,'url': url_for('pbt_channel_sales_by_offer_type', channel='tippr-honolulu', month='2012-03-01')}
-#		,{'name': 'Transaction Detail for Offers'	,'url': url_for('txn_detail')}
-#		,{'name': 'Long Running Queries'		,'url': url_for('ui_invoke_long_running')}
-
-		,{'name': 'TOM voucher sales by site' 		,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
-		,{'name': 'TOM sales by date'			,'url': url_for('tom_sales_by_date')}
-		,{'name': 'TOM activity by agency'		,'url': url_for('tom_activity_by_agency')}
-		,{'name': 'TOM activity by publisher'		,'url': url_for('tom_activity_by_publisher')}
-		,{'name': 'TOM publisher promotion detail'	,'url': url_for('tom_publisher_promotions',publisher='BigTip')}
-		,{'name': 'TOM local inventory levels'		,'url': url_for('tom_local_inventory',status='approved')}
-		,{'name': 'TOM offers per market'		,'url': url_for('tom_offers_per_market')}
-		,{'name': 'TOM Inventory of Non-National Offers'		,'url': url_for('tom_detailed_inventory_non_national')}
-		 ,{'name': 'TOM Offer Breakdown'                ,'url': url_for('tom_breakdown')}
-		,{'name': 'Hasoffers transaction detail by publisher/date', 'url': url_for('hasoffers_transaction_detail',month_start='2012-03-01',publisher='frugaling')}
+		,{'name': 'Channel Sales By Offer Type Summary'  ,'url': url_for('pbt_channel_sales_by_offer_type_summary', channel='tippr-honolulu')}
+		,{'name': 'Channel Sales By Offer Type Detail', 'url': url_for('pbt_channel_sales_by_offer_type_detail', channel='tippr-honolulu')}
 		] 
+
+        reports['OTHER REPORTS'] = [
+                {'name': 'Hasoffers transactions by publisher/date', 'url': url_for('hasoffers_transaction_detail',month_start='2012-03-01',publisher='frugaling')}
+        	]
+
+
+	reports['TOOLS'] = [
+		{'name': 'Finn & Maddy Code Generator'		,'url': '/volusion'}
+	]	
+
 	return render_template("index.html", REPORTS=reports);
 
 
@@ -316,9 +328,14 @@ from reports import cumulative_tom_sales_by_site
 cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/<status>")(cumulative_tom_sales_by_site)
 cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/", methods=['GET','POST'])(cumulative_tom_sales_by_site)
 
-from reports import pbt_channel_sales_by_offer_type
-pbt_channel_sales_by_offer_type = app.route("/pbt_channel_sales_by_offer_type/<channel>/<month>")(pbt_channel_sales_by_offer_type)
-pbt_channel_sales_by_offer_type = app.route("/pbt_channel_sales_by_offer_type/", methods=['GET','POST'])(pbt_channel_sales_by_offer_type)
+from reports import pbt_channel_sales_by_offer_type_summary
+pbt_channel_sales_by_offer_type_summary = app.route("/pbt_channel_sales_by_offer_type_summary/<channel>")(pbt_channel_sales_by_offer_type_summary)
+pbt_channel_sales_by_offer_type_summary = app.route("/pbt_channel_sales_by_offer_type_summary/", methods=['GET','POST'])(pbt_channel_sales_by_offer_type_summary)
+
+from reports import pbt_channel_sales_by_offer_type_detail
+pbt_channel_sales_by_offer_type_detail = app.route("/pbt_channel_sales_by_offer_type_detail/<channel>")(pbt_channel_sales_by_offer_type_detail)
+pbt_channel_sales_by_offer_type_detail = app.route("/pbt_channel_sales_by_offer_type_detail/", methods=['GET','POST'])(pbt_channel_sales_by_offer_type_detail)
+
 
 from reports import tom_sales_by_date
 tom_sales_by_date = app.route("/tom_sales_by_date/", methods=['GET','POST'])(tom_sales_by_date)

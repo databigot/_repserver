@@ -8,13 +8,29 @@ body {
 	font-family: arial;
 	font-size:8pt;
 }
+
+div.report_type {
+	float:left;
+	padding-right:25px;
+	min-height:700px;
+	margin:10px;
+	border-right:2px grey solid;
+
+}
+
 </style>
 {% endblock styles %}
 
 
 {% block page_content %}
-	{% for x in REPORTS %}
-		<h2><a href='{{ x.url }}'>{{ x.name }}</a></h2><br />
+	{% for rtype,rvalue in REPORTS|dictsort(false,'key') %}
+		<div class='report_type'>
+		  <h1>{{rtype}}</h1>
+		  {% for x in REPORTS[rtype] %}
+			<h4><a href='{{ x.url }}'>{{ x.name }}</a></h4>
+		  {% endfor %}
+		</div>
 	{% endfor %}
-	<br />
+	<hr style='clear:both'/>
+<br />
 {% endblock page_content %}

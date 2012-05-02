@@ -9,15 +9,19 @@ import re
 #from flask import Response
 #import csv
 #from cStringIO import StringIO
-def pbt_channel_sales_by_offer_type(channel = 'tippr-honolulu', month = '2012-03-01'):
+def pbt_channel_sales_by_offer_type_summary(channel = 'tippr-honolulu'):
     sql = """
-    select type, count(distinct(offer)) as offers, avg(vouchers)::float as v_p_d, avg(gross)::float as g_p_d, avg(net)::float as n_p_d, avg(net) / avg(gross)::float as rev_share from (select offer "offer", case when markets = '1' then 'local' else 'national' end "type", sum(vouchers) "vouchers", sum(gross) "gross", sum(payout) "payout", sum(net) "net" from (select offer.name "offer", count(distinct(oc.id)) "markets", count(distinct(item.id)) "vouchers", item.amount "price_point", count(distinct(item.id)) * item.amount "gross", count(distinct(item.id)) * case when product.marketplace_cost > 0 then product.marketplace_cost else product.payout end "payout", ((count(distinct(item.id)) * item.amount) - (count(distinct(item.id)) * case when product.marketplace_cost > 0 then product.marketplace_cost else product.payout end)) "net" from core_offer_channels oc, core_offer offer, core_item item, core_voucher voucher, core_product product where item.id = voucher.item_ptr_id and voucher.product_id = product.id and offer.id = oc.offer_id and item.offer_id = offer.id and item.transaction_id in (select distinct(transaction.id) from core_transaction transaction, core_account account, core_account_channels ac, core_channel channel where account.id = transaction.account_id and account.id = ac.account_id and channel.id = ac.channel_id and channel.name = '%(channel)s' and date_trunc('month',date(transaction.occurrence at time zone 'pst')) = '%(month)s') and voucher.status in ('pending','redeemed','purchased','issued') group by 1,item.amount,product.marketplace_cost, product.payout) as offer_detail group by 1,2 order by 6 desc) as offer_summary group by type;
-    """
-    cols, resultset = throw_sql(sql % {'channel':channel, 'month':month},DB_PBT    ); ##bind in the input params; and run it.
+    select date(offer_start)::varchar as offer_start, type as type, count(distinct(offer)) as offers, sum(vouchers)::integer as t_v, sum(gross)::float as t_g, sum(net)::float as t_n, avg(vouchers)::integer as v_p_d, avg(gross)::float as g_p_d, avg(net)::float as n_p_d, avg(net) / avg(gross)::float as rev_share from (select offer "offer", date_trunc('month',offer_start at time zone 'pst') "offer_start", case when markets = '1' then 'local' else 'national' end "type", sum(vouchers) "vouchers", sum(gross) "gross", sum(payout) "payout", sum(net) "net" from (select offer.name "offer", offer.start_date "offer_start", count(distinct(oc.id)) "markets", count(distinct(item.id)) "vouchers", item.amount "price_point", count(distinct(item.id)) * item.amount "gross", count(distinct(item.id)) * case when product.marketplace_cost > 0 then product.marketplace_cost else product.payout end "payout", ((count(distinct(item.id)) * item.amount) - (count(distinct(item.id)) * case when product.marketplace_cost > 0 then product.marketplace_cost else product.payout end)) "net" from core_offer_channels oc, core_offer offer, core_item item, core_voucher voucher, core_product product where item.id = voucher.item_ptr_id and voucher.product_id = product.id and offer.id = oc.offer_id and item.offer_id = offer.id and item.transaction_id in (select distinct(transaction.id) from core_transaction transaction, core_channel channel where channel.id = transaction.channel_id and channel.name = '%(channel)s' and transaction.occurrence at time zone 'pst' >= '2011-10-01') and voucher.status in ('pending','redeemed','purchased','issued') and date_trunc('month',offer.start_date at time zone 'pst') >= '2011-10-01' group by 1,offer.start_date, item.amount,product.marketplace_cost, product.payout) as offer_detail group by 1,2,3 order by 6 desc) as offer_summary group by type, offer_start order by 1;
+"""
+    cols, resultset = throw_sql(sql % {'channel':channel},DB_PBT    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
-        {'k':'type'                   ,'l': 'Offer Type'               ,'u': None                   ,'w': '120px'}
+	{'k':'offer_start'            ,'l': 'Offer Month'		,'u': 'date'		     ,'w': '100px'} 
+        ,{'k':'type'                  ,'l': 'Offer Type'               ,'u': None                   ,'w': '100px'}
         ,{'k':'offers'                ,'l': 'Offer Count'              ,'u': 'integer'              ,'w': '100px'}
+	,{'k':'t_v'	              ,'l': 'Total Vouchers'	       ,'u': 'integer'		    ,'w': '100px'}
+	,{'k':'t_g'		      ,'l': 'Total Gross'	       ,'u': 'currence'		    ,'w': '100px'}
+	,{'k':'t_n'		      ,'l': 'Total Net'		       ,'u': 'currency'		    ,'w': '100px'} 
         ,{'k':'v_p_d'                 ,'l': 'Vouchers/Deal'            ,'u': 'integer'              ,'w': '100px'}
         ,{'k':'g_p_d'                 ,'l': 'Gross/Deal'               ,'u': 'currency'             ,'w': '100px'}
         ,{'k':'n_p_d'                 ,'l': 'Net/Deal'                 ,'u': 'currency'             ,'w': '100px'}
@@ -26,7 +30,7 @@ def pbt_channel_sales_by_offer_type(channel = 'tippr-honolulu', month = '2012-03
     ]
 
     context = {};
-    TITLE='PBT Sales by Offer Type (Local vs. National)'; SUBTITLE= '';
+    TITLE='PBT Sales by Offer Type (Local vs. National)'; SUBTITLE= '%s [change in URL]'%channel;
     searchform = ''
     format = request.args.get('format','grid');
     if format == 'csv':
@@ -35,7 +39,32 @@ def pbt_channel_sales_by_offer_type(channel = 'tippr-honolulu', month = '2012-03
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
+def pbt_channel_sales_by_offer_type_detail(channel = 'tippr-honolulu'):
+    sql = """
+    select offer "offer", date(offer_start at time zone 'pst')::varchar "offer_start", case when markets = '1' then 'local' else 'national' end "type", sum(vouchers)::integer "vouchers", sum(gross)::float "gross", sum(payout)::float "payout", sum(net)::float "net" from (select offer.name "offer", offer.start_date "offer_start", count(distinct(oc.id)) "markets", count(distinct(item.id)) "vouchers", item.amount "price_point", count(distinct(item.id)) * item.amount "gross", count(distinct(item.id)) * case when product.marketplace_cost > 0 then product.marketplace_cost else product.payout end "payout", ((count(distinct(item.id)) * item.amount) - (count(distinct(item.id)) * case when product.marketplace_cost > 0 then product.marketplace_cost else product.payout end)) "net" from core_offer_channels oc, core_offer offer, core_item item, core_voucher voucher, core_product product where item.id = voucher.item_ptr_id and voucher.product_id = product.id and offer.id = oc.offer_id and item.offer_id = offer.id and item.transaction_id in (select distinct(transaction.id) from core_transaction transaction, core_channel channel where channel.id = transaction.channel_id and channel.name = '%(channel)s' and transaction.occurrence at time zone 'pst' >= '2011-10-01') and voucher.status in ('pending','redeemed','purchased','issued') and date_trunc('month',offer.start_date at time zone 'pst') >= '2011-10-01' group by 1,offer.start_date, item.amount,product.marketplace_cost, product.payout) as offer_detail group by 1,2,3 order by 2 desc;
+"""
+    cols, resultset = throw_sql(sql % {'channel':channel},DB_PBT    ); ##bind in the input params; and run it.
+    ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'offer'                  ,'l': 'Offer'                    ,'u': None                   ,'w': '200px'}
+        ,{'k':'offer_start'           ,'l': 'Start Date'               ,'u': 'date'                 ,'w': '100px'}
+        ,{'k':'type'                  ,'l': 'Offer Type'               ,'u': None                   ,'w': '100px'}
+        ,{'k':'vouchers'              ,'l': 'Channel Vouchers'         ,'u': 'integer'              ,'w': '100px'}
+        ,{'k':'gross'                 ,'l': 'Channel Gross'            ,'u': 'currency'             ,'w': '100px'}
+        ,{'k':'payout'                ,'l': 'Channel Payout'           ,'u': 'currency'             ,'w': '100px'}
+	,{'k':'net'		      ,'l': 'Channel Net'	       ,'u': 'currency'		    ,'w': '100px'} 
 
+    ]
+
+    context = {};
+    TITLE='PBT Sales by Offer Type Detail (Local vs. National)'; SUBTITLE=  '%s [change in URL]'%channel;
+    searchform = ''
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='pbt_channel_sales_by_offer_type_detail_v1'));
+
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 def tom_sales_by_date():
     sql = """
     select promotions_run.end_date::varchar "promo_end", count(distinct(promotions_run.id)) "promotions", count(distinct(voucher.id)) "vouchers_sold", sum(product.price)::integer "gross_sales" from marketplace_promotion promotions_run left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher where publisher.id = promotions_run.publisher_id and promotions_run.end_date < date(now()) group by 1 having count(distinct(voucher.id)) > 1 order by promotions_run.end_date::varchar desc;  
@@ -185,7 +214,7 @@ select distinct(referral.transaction_id) "transaction_id", channel.name "channel
 	   except:
 		print "Cannot decode the json object"
       context = {};
-      TITLE='HASOFFERS AFFILIATE TRANSACTIONS BY PUBLISHER & MONTH'; SUBTITLE= '';
+      TITLE='HASOFFERS AFFILIATE TRANSACTIONS BY PUBLISHER & MONTH'; SUBTITLE= 'MONTH: %s PUBLISHER: %s [change in URL]'%(month_start, publisher);
       searchform = """
         <form method='POST' action='%s'> <!--- target is me -->
             <p><label id='search_label' for='status_input'><span>Month Start: </span></label>
@@ -296,12 +325,13 @@ def tom_publisher_promotions(publisher='BigTip'):
         publisher = publisher_in
 
     sql = """
-select publisher.name "publisher", promotions_run.name "promotion", promotions_run.start_date::varchar "start", promotions_run.end_date::varchar "end", count(distinct(voucher.id)) "vouchers_sold", sum(product.price)::integer "gross_sales" from marketplace_promotion promotions_run left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher where publisher.id = promotions_run.publisher_id and publisher.name = '%(publisher)s' and promotions_run.status in ('closed','finalized') group by 1,2,3,4;
+select publisher.name "publisher", agency.name "agency", promotions_run.name "promotion", promotions_run.start_date::varchar "start", promotions_run.end_date::varchar "end", count(distinct(voucher.id)) "vouchers_sold", coalesce(sum(product.price),0)::integer "gross_sales" from marketplace_agency agency, marketplace_offer offer, marketplace_promotion promotions_run left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher where publisher.id = promotions_run.publisher_id and publisher.name = '%(publisher)s' and promotions_run.offer_id = offer.id and offer.agency_id = agency.id and promotions_run.status in ('closed','finalized') group by 1,2,3,4,5;
     """
     cols, resultset = throw_sql(sql % {'publisher':publisher},DB_TOM    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
         {'k':'publisher'                ,'l': 'Publisher'               ,'u': None              ,'w': '120px'}
+	,{'k':'agency'			,'l': 'Agency'			,'u': None		,'w': '120px'}
 	,{'k':'start'			,'l': 'Start Date'		,'u': None 		,'w': '100px'}
         ,{'k':'end'                     ,'l': 'End Date'      		,'u': None              ,'w': '100px'}
         ,{'k':'promotion'               ,'l': 'Promotion'		,'u': None		,'w':'400px'}
@@ -1064,6 +1094,13 @@ def offer_metrics(offer_id='1'):
         ROWS = [dict(zip(cols,row)) for row in resultset]
         metrics['sale_sources'] = ROWS
 
+	sql = """
+	select c.name, count(distinct(t.id)) from core_transaction t, core_item i, core_channel c where t.channel_id = c.id and i.transaction_id = t.id and i.offer_id = '%(offer_id)s' group by 1;
+	"""
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['sales_by_channel'] = ROWS
 
 	sql = """
 	select offer.name "name", count(distinct(transaction.account_id)) "unique_buyers", sum(transaction.amount)::float "gross" from core_offer offer, core_item item, core_transaction transaction, core_account account where item.offer_id = offer.id and item.transaction_id = transaction.id and transaction.account_id = account.id and account.date_joined > transaction.occurrence - interval '4 hours' and offer.id = '%(offer_id)s' group by 1;

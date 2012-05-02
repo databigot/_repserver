@@ -200,6 +200,14 @@
         <tr><td>{{row['event']}}</td><td>{{row['campaign']}}</td><td>{{row['medium']}}</td><td>{{row['referral_count']}}</td></tr>
     {% endfor %}
     </table>
+    
+    <h3>Sales by Channel</h3>
+    <table>
+    <th>Channel Name</th><th>Vouchers Sold</th>
+    {% for row in sales_by_channel %}
+	<tr><td>{{row['name']}}</td><td>{{row['count']}}</td></tr>
+    {% endfor %}
+    </table>
 
 {% endif %}
   </body>
