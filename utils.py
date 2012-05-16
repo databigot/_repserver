@@ -90,31 +90,42 @@ def data_to_texttable(ROWS, COLS, CONTEXT):
 		col_name = c['k']
 		_wid = len(c['l'])
 		col_width[col_name] = _wid
-	formatter = {
+	justifier = {
 	#TODO: handle 'u'-type, handle 'percent', 'linkto', 'currency', etc.
-		None:		(lambda _val, _wid: _val.ljust(_wid))
-		,'string': 	(lambda _val, _wid: _val.ljust(_wid))
+		None:		(lambda _val, _wid: str(_val or '').ljust(_wid))
+		,'string': 	(lambda _val, _wid: str(_val or '').ljust(_wid))
 		,'number':	(lambda _val, _wid: str(_val).rjust(_wid))
 		,'date':	(lambda _val, _wid: str(_val).rjust(_wid))
 		}
+	formatter = {
+		None:		(lambda _val: str(_val or ''))
+		,'string': 	(lambda _val: str(_val or ''))
+		,'number':	(lambda _val: str(_val)) #commify, zero-blank, currency, percent
+		,'date':	(lambda _val: str(_val)) #format date?
+		}
+		
+
 	for r in ROWS:
 		for c in COLS:
 			col_name = c['k']
-			if not c['t'] :
-				col_width[col_name]= max(col_width[col_name], len(r[col_name]))
+#			if not c['t'] :
+			col_width[col_name]= max(col_width[col_name], 
+				(0 if not r[col_name] else len(
+					formatter[c['t']](r[col_name]))))	
+#str(r[col_name])) ))
 
 	print >>textout, CONTEXT["title"].center(sum(col_width.itervalues(), len(COLS)-1))
 
 	# "xx".ljust(10), rjust(), center()
-	print >>textout, '+'.join(['-'*col_width[c['k']] for c in COLS])
-	print >>textout, '|'.join([c['l'].center(col_width[c['k']]) for c in COLS])
-	print >>textout, '+'.join(['-'*col_width[c['k']] for c in COLS])
+	print >>textout, ' /'+'+'.join(['-'*col_width[c['k']] for c in COLS])+'\\ '
+	print >>textout, ' |'+'|'.join([c['l'].center(col_width[c['k']]) for c in COLS])+'| '
+	print >>textout, ' |'+'+'.join(['-'*col_width[c['k']] for c in COLS])+'| '
 	for r in ROWS:			
-		print >>textout, '|'.join(
-			[formatter[c['t']](r[c['k']],col_width[c['k']]) 
-				for c in COLS])	
-	print >>textout, '+'.join(['-'*col_width[c['k']] for c in COLS])
-	print >>textout, '(%s rows)'% len(ROWS)
+		print >>textout, ' |'+'|'.join(
+			[justifier[c['t']](formatter[c['t']](r[c['k']]),col_width[c['k']]) 
+				for c in COLS])	+'| '
+	print >>textout, ' \\'+'+'.join(['-'*col_width[c['k']] for c in COLS])+'/ '
+	print >>textout, ' (%s rows)'% len(ROWS)
 	return textout.getvalue(), 'text/plain', 'text/plain'
 
 def unique_filename(format="txt", report="", by=""):
@@ -243,7 +254,7 @@ def load_mongo_fixture(unique_name):
 	fixtures = mongo_conn.test.fixtures
 	my_fixture = fixtures.find_one({'name':unique_name})
 
-	return my_fixture["doc"]
+	return my_fixture #nb. returns name, base_query, qualifiers, and doc.
 
 def list_mongo_fixtures(query):
 	MONGO_HOST = 'localhost' #TODO: move to settings?
