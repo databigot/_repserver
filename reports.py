@@ -973,6 +973,7 @@ def offers_detail(offers=None):
 	offers = offers or ['abb65856923e4e389ae6a09709e70600','7b7c54d1a9854f8788db45df42b7d87b', '8d10df493ad74e86a70e9a4527913739','7ee676edc5564d5f9d0cdfa7d5d620fe']
 	SUBTITLE = request.values.get('filter_pretty',None)
 	TITLE ='OFFER DETAIL REPORT';
+###OLD QUERIES --please save:
 	sql = """
 		select ag_acc.fullname agent, ad.name merchant, p.name publisher, o.status, o.start_date::varchar start_date, o.end_date::varchar end_date
 				, ad.category_id category, o.headline
@@ -1004,6 +1005,7 @@ select ag_acc.fullname agent, ad.name merchant, p.name publisher, o.status, o.st
                                         select * from core_transaction
                                                 where id = i.transaction_id and status in ('completed', 'pending')) */
 	"""
+###end of OLD QUERIES
 	sql = """
 select ag_acc.fullname agent, ad.name merchant, p.name publisher, o.status, o.start_date::varchar start_date, o.end_date::varchar end_date
                                 , ad.category_id category, o.headline
