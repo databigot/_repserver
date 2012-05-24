@@ -112,6 +112,7 @@ def index():
 		,{'name': 'Sales Report by Agent'		,'url': url_for('agent_sales')}
 		,{'name': 'Channel Sales By Offer Type Summary'  ,'url': url_for('pbt_channel_sales_by_offer_type_summary', channel='tippr-honolulu')}
 		,{'name': 'Channel Sales By Offer Type Detail', 'url': url_for('pbt_channel_sales_by_offer_type_detail', channel='tippr-honolulu')}
+		,{'name': 'Schools Referral Report for MS Offers', 'url': url_for('schools_referral')}
 		] 
 
         reports['OTHER REPORTS'] = [
@@ -391,6 +392,10 @@ dealcats = app.route("/pubreps/dealcats", methods=['GET','POST'])(dealcats)
 
 from reports import offers_detail
 offers_detail = app.route("/offers_detail")(offers_detail)
+
+from reports import schools_referral
+schools_referral = app.route("/schools_referral/<yyyymm>")(schools_referral)
+schools_referral = app.route("/schools_referral/")(schools_referral)
 
 def who_in(*groupnames):
    members = []
