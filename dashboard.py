@@ -120,7 +120,8 @@ def index():
 
 
 	reports['TOOLS'] = [
-		{'name': 'Finn & Maddy Code Generator'		,'url': '/volusion'}
+		{'name': 'Finn & Maddy Code Generator'		,'url': '/volusion'},
+        {'name': 'Email Schedule Checker',           'url': '/campaigns'}
 	]	
 
 	return render_template("index.html", REPORTS=reports);
@@ -319,6 +320,9 @@ def listpubs():
     TITLE='ACTIVE PUBLISHERS LIST';
     SUBTITLE='';
     return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
+
+from campaigns import showcampaigns
+showcampaigns = app.route("/campaigns/")(showcampaigns)
 
 from reports import account_detail
 account_detail = app.route("/account_detail/<id>")(account_detail)
