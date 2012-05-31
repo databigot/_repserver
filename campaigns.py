@@ -86,7 +86,7 @@ def get_offers( conn, dt, publisher ):
 
 
 def showcampaigns():
-    conn = psycopg2.connect("dbname='silos' user='django' host='127.0.0.1' port=5433");
+    conn = psycopg2.connect("dbname='silos' user='django' host='127.0.0.1'");
     tznow = datetime.now(tz=pytz.utc)
     today = tznow.astimezone( pytz.timezone("America/Chicago") ).date()
     tomorrow = today+timedelta(days=1)
