@@ -73,7 +73,7 @@ def get_offers( conn, dt, publisher ):
 
         offers.append( { "id" : row[0], "headline" : row[1], "status" : row[2], "publication_date" : row[3], "channels" : channels } )
 
-    sortorder = ['closed', 'processing', 'published', 'scheduled', 'approved', 'complete', 'creative', 'draft']
+    sortorder = ['closed', 'processing', 'published', 'scheduled', 'approved', 'complete', 'creative', 'draft', 'incomplete']
 
     return sorted(offers, key=lambda x: sortorder.index( x["status"] )), timezones
 
