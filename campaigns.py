@@ -14,15 +14,21 @@ psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
 def get_publishers(conn, dt):
 
-    publisher_query = ( "select distinct p.id, p.name, m.apikey, m.secretkey "
-                        "  from core_offer o, core_publisher p, core_mailinglist m "
-                        " where (p.mailing_list_id = m.id) and (p.id = o.publisher_id) and (o.start_date = %s) ")
-
+    publisher_query = ( "select distinct p.id, p.name, "
+                        "       array( select distinct m.apikey||'|'||m.secretkey "
+                        "                from core_mailinglist m, core_segment s, core_channel c "
+                        "                where (s.list_id = m.id) and (s.channel_id = c.id) and (c.publisher_id = p.id) ) as keys "
+                        "  from core_offer o, core_publisher p "
+                        " where (p.id = o.publisher_id) and (o.start_date = %s)" )
+       
+       
     curr = conn.cursor()
     curr.execute( publisher_query, (dt,) )
     rows = curr.fetchall()
 
-    pubs = [ dict(zip( ["id", "name", "api_key", "secret_key"], row)) for row in rows ]
+    pubs = []
+    for row in rows:
+        pubs.append( { "id" : row[0], "name" : row[1], "keys" : [ x.split('|') for x in row[2] ] } )
 
     return sorted(pubs, key=lambda x: x["name"])
 
@@ -55,7 +61,9 @@ def get_offers( conn, dt, publisher ):
     timezones = {}
 
     offer_query = ( "select o.id, o.headline, o.status, publication_date at time zone 'CDT', "
-                    "       array( select s.name||'|'||g.timezone from core_offer_channels oc, core_channel c, core_geography g, core_segment s where (s.channel_id = c.id) and (g.id = c.geography_id) and (oc.channel_id = c.id) and (oc.offer_id = o.id)) as channels "
+                    "       array( select s.name||'|'||g.timezone "
+                    "                from core_offer_channels oc, core_channel c, core_geography g, core_segment s "
+                    "                where (s.channel_id = c.id) and (g.id = c.geography_id) and (oc.channel_id = c.id) and (oc.offer_id = o.id)) as channels "
                     "  from core_offer o "
                     " where (start_date = %s) and (o.publisher_id = %s) " )
 
@@ -88,12 +96,12 @@ def showcampaigns():
     tzmaster = {}
 
     for pub in pubs:
-        try:
-            pub["blasts"] = get_sailthru_blasts( pub["api_key"], pub["secret_key"] )
-            print "Succeeded getting blasts for", pub["name"]
-        except Exception as e:
-            pub["blasts"] = {}
-            print "error getting blasts for %s with (%s, %s): %s" % (pub["name"], pub["api_key"], pub["secret_key"], e)
+        pub["blasts"] = []
+        for key in pub["keys"]:
+            try:
+                pub["blasts"].extend( get_sailthru_blasts( key[0], key[1] ) )
+            except Exception as e:
+                print "error getting blasts for %s with (%s, %s): %s" % (pub["name"], pub["api_key"], pub["secret_key"], e)
 
         pub["offers"], timezones = get_offers( conn, tomorrow, pub["id"] )
         tzmaster.update(timezones)
