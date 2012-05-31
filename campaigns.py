@@ -42,7 +42,7 @@ def get_sailthru_blasts( api_key, secret_key ):
 
     url = "http://api.sailthru.com/blast?"+urlencode(params)
     f = urlopen( url )
-    data = loads(f.read())
+    data = loads( f.read() )
 
     blasts = {}
     for blast in data["blasts"]:
@@ -52,7 +52,6 @@ def get_sailthru_blasts( api_key, secret_key ):
         t = datetime.strptime(timestr, "%a, %d %b %Y %H:%M:%S ")-timedelta(hours=offset)
         t = t.replace(tzinfo = pytz.utc)
         blasts[ (blast["list"], blast["subject"]) ] = { "email_count" : blast["email_count"], "blast_id" : blast["blast_id"], "schedule_time":t }
-
 
     return blasts
 
@@ -96,12 +95,12 @@ def showcampaigns():
     tzmaster = {}
 
     for pub in pubs:
-        pub["blasts"] = []
+        pub["blasts"] = {}
         for key in pub["keys"]:
             try:
-                pub["blasts"].extend( get_sailthru_blasts( key[0], key[1] ) )
+                pub["blasts"].update( get_sailthru_blasts( key[0], key[1] ) )
             except Exception as e:
-                print "error getting blasts for %s with (%s, %s): %s" % (pub["name"], pub["api_key"], pub["secret_key"], e)
+                print "error getting blasts for %s with (%s, %s): %s" % (pub["name"], key[0], key[1], e)
 
         pub["offers"], timezones = get_offers( conn, tomorrow, pub["id"] )
         tzmaster.update(timezones)
