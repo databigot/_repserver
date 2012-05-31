@@ -55,7 +55,7 @@ def get_offers( conn, dt, publisher ):
     timezones = {}
 
     offer_query = ( "select o.id, o.headline, o.status, publication_date at time zone 'CDT', "
-                    "       array( select c.name||'|'||g.timezone from core_offer_channels oc, core_channel c, core_geography g where (g.id = c.geography_id) and (oc.channel_id = c.id) and (oc.offer_id = o.id)) as channels "
+                    "       array( select s.name||'|'||g.timezone from core_offer_channels oc, core_channel c, core_geography g, core_segment s where (s.channel_id = c.id) and (g.id = c.geography_id) and (oc.channel_id = c.id) and (oc.offer_id = o.id)) as channels "
                     "  from core_offer o "
                     " where (start_date = %s) and (o.publisher_id = %s) " )
 
@@ -71,7 +71,7 @@ def get_offers( conn, dt, publisher ):
             timezones[name] = pytz.timezone( tz )
             channels.append(name)
 
-        offers.append( { "id" : row[0], "headline" : row[1], "status" : row[2], "publication_date" : row[3], "channels" : channels } )
+        offers.append( { "id" : row[0], "headline" : row[1], "status" : row[2], "publication_date" : row[3], "channels" : sorted(channels) } )
 
     sortorder = ['closed', 'processing', 'published', 'scheduled', 'approved', 'complete', 'creative', 'draft', 'incomplete']
 
