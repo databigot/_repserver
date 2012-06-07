@@ -112,6 +112,7 @@ def index():
 		,{'name': 'Sales Report by Agent'		,'url': url_for('agent_sales')}
 		,{'name': 'Channel Sales By Offer Type Summary'  ,'url': url_for('pbt_channel_sales_by_offer_type_summary', channel='tippr-honolulu')}
 		,{'name': 'Channel Sales By Offer Type Detail', 'url': url_for('pbt_channel_sales_by_offer_type_detail', channel='tippr-honolulu')}
+		,{'name': 'Schools Referral Report for MS Offers', 'url': url_for('schools_referral')}
 		] 
 
         reports['OTHER REPORTS'] = [
@@ -120,7 +121,8 @@ def index():
 
 
 	reports['TOOLS'] = [
-		{'name': 'Finn & Maddy Code Generator'		,'url': '/volusion'}
+		{'name': 'Finn & Maddy Code Generator'		,'url': '/volusion'},
+        {'name': 'Email Schedule Checker',           'url': '/campaigns'}
 	]	
 
 	return render_template("index.html", REPORTS=reports);
@@ -345,6 +347,9 @@ def listpubs():
     SUBTITLE='';
     return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
+from campaigns import showcampaigns
+showcampaigns = app.route("/campaigns/")(showcampaigns)
+
 from reports import account_detail
 account_detail = app.route("/account_detail/<id>")(account_detail)
 account_detail = app.route("/account_detail/", methods=['GET','POST'])(account_detail)
@@ -418,6 +423,10 @@ dealcats = app.route("/pubreps/dealcats", methods=['GET','POST'])(dealcats)
 
 from reports import offers_detail
 offers_detail = app.route("/offers_detail")(offers_detail)
+
+from reports import schools_referral
+schools_referral = app.route("/schools_referral/<yyyymm>")(schools_referral)
+schools_referral = app.route("/schools_referral/")(schools_referral)
 
 def who_in(*groupnames):
    members = []

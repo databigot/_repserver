@@ -841,6 +841,59 @@ def dealcats(id='test'):
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, #SUBTITLE=SUBTITLE,
 		  SELECTOR=SELECTOR, BACK=url_for('listpubs') );
 
+def schools_referral(yyyymm = None):
+	"""
+		This report delivers distinct emails from the referral table to enable MSNOffers.com school payouts
+	"""
+	month = datetime.date(2011, 1, 1) #starting month that we have data for
+	pick_month = []; 
+	today = datetime.date.today()
+	todaykey = today.strftime('%Y-%m')
+	while month < today:
+		monthkey = month.strftime( '%Y-%m')
+		monthvalue = month.strftime( '%B %Y') + (
+			" -- MTD" if monthkey == todaykey else "")
+		pick_month.append((monthkey,monthvalue))
+		month = month + datetime.timedelta(days=31) 
+		month = month - datetime.timedelta(month.day - 1) #go to first of month 
+
+	yyyymm = yyyymm or todaykey #pick current as default	
+	SELECTOR = {
+		'list':		pick_month
+		,'current': 	yyyymm
+		,'submit_url': '/schools_referral/'
+		,'name':	'Month'
+	}
+	sql = """
+	SELECT occurrence::varchar, email, source, campaign
+ 	FROM (SELECT DISTINCT ON (ce.email) cr.occurrence, ce.email, cr.source, cr.campaign 
+	FROM core_emailaddress AS ce, core_referral AS cr, core_channel AS cc, core_account AS ca 
+	WHERE ce.account_id = cr.account_id 
+	AND cr.channel_id = cc.id 
+	AND cr.account_id = ca.id 
+	AND ca.publisher_id = '2e994e6d08dc40fa810037514affeeca' 
+	AND (ce.hardbounced = 'f' OR ce.hardbounced IS NULL)
+	AND (date(date_trunc('month',cr.occurrence)) = '%(month)s')) AS LolWut ORDER BY occurrence ASC;
+
+	"""
+	cols, resultset = throw_sql(sql  % {'month':yyyymm+'-01'}, DB_PBT)
+	ROWS = [dict(zip(cols,row)) for row in resultset]
+	COLS = [#k:field_name		l:title(\n)			u:formatting		w:width
+		{'k':'occurrence'	,'l':'Date/Time'		,'u': None		,'w': '130px'}
+		,{'k':'email'		,'l':'Email Address'		,'u': None		,'w': '200px'}
+		,{'k':'source'		,'l':'Source'			,'u': None		,'w': '200px'}
+		,{'k':'campaign'	,'l':'Campaign'			,'u': None		,'w': '120px'}
+	]	
+	TITLE='MSNOFFERS SCHOOL REFERRAL REPORT'; #SUBTITLE='(for %s)'%pick_month[yyyymm]
+
+    	format = request.args.get('format','grid');
+    	if format == 'csv':
+		return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='schools_referral-v1'));	
+    	else: #assume format == 'grid':
+		return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, 
+			SELECTOR=SELECTOR);
+
+
 def agent_sales(yyyymm = None):
 	"""
 		Report of Agent Sales for the Month
@@ -1128,6 +1181,7 @@ def offers_detail(offers=None):
 	offers = offers or ['abb65856923e4e389ae6a09709e70600','7b7c54d1a9854f8788db45df42b7d87b', '8d10df493ad74e86a70e9a4527913739','7ee676edc5564d5f9d0cdfa7d5d620fe']
 	SUBTITLE = request.values.get('filter_pretty',None)
 	TITLE ='OFFER DETAIL REPORT';
+###OLD QUERIES --please save:
 	sql = """
 		select ag_acc.fullname agent, ad.name merchant, p.name publisher, o.status, o.start_date::varchar start_date, o.end_date::varchar end_date
 				, ad.category_id category, o.headline
@@ -1159,6 +1213,7 @@ select ag_acc.fullname agent, ad.name merchant, p.name publisher, o.status, o.st
                                         select * from core_transaction
                                                 where id = i.transaction_id and status in ('completed', 'pending')) */
 	"""
+###end of OLD QUERIES
 	sql = """
 select ag_acc.fullname agent, ad.name merchant, p.name publisher, o.status, o.start_date::varchar start_date, o.end_date::varchar end_date
                                 , ad.category_id category, o.headline
