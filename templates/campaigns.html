@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>
+      Campaign Schedule for {{ tomorrow.strftime("%m/%d") }}
+    </title>
+    <style type='text/css'>
+        tr.warning td { background-color:#ffff33; }
+        tr.alert td { background-color:#ff0033;color:white }
+    </style>
+  </head>
+  <body style="font-family: Arial;border: 0 none;font-size:10pt;">
+     <h1>Offers with a start date of {{ tomorrow.strftime("%m/%d") }}</h1>
+     {% for p in pubs %}
+        <hr />
+        <h2>{{ p["name"] }}</h2>
+
+        <table style="margin-left:50px; border=1px solid black" cellpadding=4 border=1>
+            <tr><td width=400><b>Offer headline</b><br /></td><td width=80><b>Pub. Date<br /></b></td><td width=80><b>Status</b><br /></td><td><b>Channels&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Sailthru Schedule</b><br /></td></tr>
+        {% for o in p["offers"] %}
+            <tr class="{% if o["status"] != 'scheduled' and o["status"] != 'published' %}warning{%endif%}">
+              <td width=400 valign=top>
+                <a target="_blank" href="http://tippr.com/admin/core/offer/{{ o["id"] }}"><img src="/static/imgs/mag.png" alt="Edit Offer in Admin"></a>&nbsp;&nbsp;
+                {{ o["headline"] }}
+              </td>
+              <td width=80 valign=top>{% if o["publication_date"] %}{{ o["publication_date"].strftime("%m/%d %H:%M") }}{%endif%}</td>
+              <td width=80 valign=top>{{ o["status"] }}</td>
+              <td valign=top>
+                <table cellspacing=0 cellpadding=2>
+                    {% for c in o["channels"] %}
+                        <tr class="{% if (o["status"] == 'scheduled' or o["status"] == 'published') and not p["blasts"][(c, o["headline"])]  %}alert{% endif %}" >
+                          <td width=150>{{ c }}</td>
+                          <td width=110>
+                            {% if p["blasts"][ ( c, o["headline"] ) ] %}
+                                {{ p["blasts"][ (c, o["headline"] ) ]["schedule_time"].astimezone(timezones[c]).strftime("%m/%d %H:%M %Z") }}
+                            {% endif %}
+                          <td>
+                        </tr>
+                    {% endfor %}
+                </table>
+              </td>
+            </tr>
+        {% endfor %}
+        </table>
+        <br />
+     {% endfor %}
+  </body>
+</html>
