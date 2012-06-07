@@ -34,17 +34,27 @@
       var dataTable = new google.visualization.DataTable();
 
       // define columns
-      dataTable.addColumn( { type: 'date',   label: 'End Date', 'pattern': 'mm-dd-yyyy' } );
+      dataTable.addColumn( { type: 'string', label: 'Offer ID' } );
+      dataTable.addColumn( { type: 'string', label: 'End Date' } );
       dataTable.addColumn( { type: 'string', label: 'Merchant' } );
       dataTable.addColumn( { type: 'string', label: 'Headline' } );
       dataTable.addColumn( { type: 'string', label: 'City' } );
       dataTable.addColumn( { type: 'string', label: 'Channel' } );
-      dataTable.addColumn( { type: 'number', label: '# Sold' } );
-      dataTable.addColumn( { type: 'number', label: 'Gross', pattern: '#,##0.00' } );
+      dataTable.addColumn( { type: 'number', label: 'Sold #' } );
+      dataTable.addColumn( { type: 'number', label: 'Sold $', pattern: '#,##0.00' } );
+      dataTable.addColumn( { type: 'number', label: 'Completed #' });
+      dataTable.addColumn( { type: 'number', label: 'Completed $'});
+      dataTable.addColumn( { type: 'number', label: 'Voided' });
+      dataTable.addColumn( { type: 'number', label: 'Voided $' });
+      dataTable.addColumn( { type: 'number', label: 'Aborted' });
+      dataTable.addColumn( { type: 'number', label: 'Aborted $' });
+      dataTable.addColumn( { type: 'number', label: 'Failed' });
+      dataTable.addColumn( { type: 'number', label: 'Failed $' });
+
 
       // add rows
       {% for r in rows %}
-      dataTable.addRow( [ new Date("{{ r.end_date.strftime( '%m/%d/%y' ) }}"), "{{ r.name | safe }}", {v:"{{ r.headline | replace('"','') | safe }}", f:"{{ r.headline | replace('"','') | safe }}"}, "{{ r.city }}", "{{ r.channame | safe }}", {{ r.count }}, {{ r.sum }} ] );
+      dataTable.addRow( [ "{{ r.offerid }}", Date("{{ r.end_date.strftime( '%m/%d/%y' ) }}"), "{{ r.advertiser | safe }}", "{{ r.headline | replace('"','') | safe }}", "{{ r.city | replace('"','') | safe }}", "{{ r.channame | safe }}", {{ r.voucher_count }}, {{ r.voucher_sum  }}, {{ r.completed  | int}}, {{ r.completed_amount | float }},{{ r.voided | int }}, {{ r.voided_amount | float }}, {{ r.aborted | int }}, {{ r.aborted_amount | float }},{{ r.failed | int }}, {{ r.failed_amount | float }} ] );
       {% endfor %}
 
       // draw the actual table
@@ -76,6 +86,10 @@
             <button type='submit'>Search</button></p> 
         </form>
     <br />
+    {% if data %}
+	<h4> {{ data }} </h4>
+    {% endif %}
+
     {% if is_good %}
 	<div id="data"></div>
         <br />

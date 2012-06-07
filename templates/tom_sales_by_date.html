@@ -46,7 +46,8 @@
     <h3>No data found</h3>
 {% else %}  
 
-    <h2>TOM Summary</h2>
+    <h2>TOM Sales by Promotion Start Date</h2>
+    <p>Since there is no real time transactional data in TOM, all sales are attributed to the promotion start date.  If an offer starts on Monday and sells $100 on Monday, $100 on Tuesday and $100 on Wednesday - this report will attribute all $300 in sales to Monday due to that being the start date of the promotion.</p>
     <script type="text/javascript">
       google.load("visualization", "1", {packages:["corechart"]});
       google.setOnLoadCallback(drawChart);
@@ -57,7 +58,7 @@
         data.addColumn('number', 'Gross');
         data.addRows([
           {% for ts in details['data_summary'][::-1] %}
-            ['{{ts["promo_end"]}}', {{ts["vouchers_sold"]}},   {{ts["gross_sales"]}}],
+            ['{{ts["promo_start"]}}', {{ts["vouchers_sold"]}},   {{ts["gross_sales"]}}],
           {% endfor %}
         ]);
 
@@ -73,18 +74,18 @@
 
     <div id='tom_summary_chart'></div> 
     <table border=1>
-    <th>End Date</th><th>Promotions</th><th>Vouchers Sold</th><th>Gross Sales</th>
+    <th>Start Date</th><th>Promotions</th><th>Vouchers Sold</th><th>Gross Sales</th>
     {% for refrow in details['data_summary'] %}
-        <tr><td>{{refrow['promo_end']}}</td><td>{{refrow['promotions']}}</td><td>{{ refrow['vouchers_sold'] }}</td><td>{{ '{:.2f}'.format(refrow['gross_sales']) }}</td></tr>
+        <tr><td>{{refrow['promo_start']}}</td><td>{{refrow['promotions']}}</td><td>{{ refrow['vouchers_sold'] }}</td><td>{{ '{:.2f}'.format(refrow['gross_sales']) }}</td></tr>
     {% endfor %}
     </table>
     <hr style='border:0px;height:100px;'/>
 
     <h2>TOM Detail (all non-zero selling promotions)</h2>
     <table border=1>
-    <th>End Date</th><th>Publisher</th><th>Promotion</th><th>Vouchers Sold</th><th>Gross Sales</th>
+    <th>Start Date</th><th>Publisher</th><th>Promotion</th><th>Vouchers Sold</th><th>Gross Sales</th>
     {% for refrow in details['data_detail'] %}
-        <tr><td>{{refrow['promo_end']}}</td><td>{{refrow['publisher']}}<td>{{refrow['promotion']}}</td><td>{{ refrow['vouchers_sold'] }}</td><td>{{ '{:.2f}'.format(refrow['gross_sales']) }}</td></tr>
+        <tr><td>{{refrow['promo_start']}}</td><td>{{refrow['publisher']}}<td>{{refrow['promotion']}}</td><td>{{ refrow['vouchers_sold'] }}</td><td>{{ '{:.2f}'.format(refrow['gross_sales']) }}</td></tr>
     {% endfor %}
     </table>
     <hr style='border:0px;height:100px;'/>
