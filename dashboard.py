@@ -1,11 +1,10 @@
-import psycopg2
+#import psycopg2
 from flask import Flask, url_for, render_template, g, session, request, redirect, abort
 import jinja2
 from flaskext.openid import OpenID, COMMON_PROVIDERS
 import datetime
 import os
 import sys
-from pymongo import Connection, objectid
 
 import csv
 
@@ -13,14 +12,14 @@ from sqlhelpers import *
 from settings import *
 
 import hashlib
-from pymongo import Connection, ReadPreference
+from pymongo import objectid, ReadPreference
 import math
 from datetime import date, timedelta
 
 ##from long_running import ui_invoke_long_running
 
-psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
-psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
+#psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
+#psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
 app = Flask(__name__)
 
@@ -129,7 +128,8 @@ def index():
 #--------------------------------------------------------
 
 
-recentbad_sql = ( "select p.name, o.id, o.name, o.start_date, o.end_date, o.automatable, o.status, t.status, count(*)"
+recentbad_sql = ( "select p.name pub_name, o.id offer_id, o.name offer_name, o.start_date start_date,"
+		"	 o.end_date end_date, o.automatable, o.status offstatus, t.status txnstatus, count(*)"
                 "  from core_offer o, core_publisher p, core_item i, core_transaction t"
                 " where o.publisher_id = p.id"
                 "   and o.status = 'processing'"
@@ -139,7 +139,8 @@ recentbad_sql = ( "select p.name, o.id, o.name, o.start_date, o.end_date, o.auto
                 " group by p.name, o.id, o.name, o.start_date, o.end_date, o.automatable, o.status, t.status"
                 " order by end_date desc" )
 
-inprocess_sql = ( "select p.name, o.id, o.name, o.start_date, o.end_date, o.automatable, o.status, t.status, count(*)"
+inprocess_sql = ( "select p.name pub_name, o.id offer_id, o.name offer_name, o.start_date start_date, "
+		"	o.end_date end_date, o.automatable, o.status offstatus, t.status txnstatus, count(*)"
                 "  from core_offer o, core_publisher p, core_item i, core_transaction t"
                 " where o.publisher_id = p.id"
                 "   and end_date > current_date"
@@ -158,39 +159,31 @@ def offers():
 
 
 def get_offers(sql):
-    try:
-        conn = psycopg2.connect("dbname='silos' user='django' host='127.0.0.1'");
-        curr = conn.cursor()
-        curr.execute(sql)
-        results = curr.fetchall();
+	(cols,results) = throw_sql(sql, DB_PBT)
+	offers = []
+	if (len(results) == 0):
+	    return []
+	offer = dict( zip( cols, results[0] ) )
+	offer["statii"] = {}
 
-        offers = []
-        if (len(results) == 0):
-            return []
+	for res in results:
+	    if res[1] != offer["offer_id"]:
+		total = sum( [v for k,v in offer["statii"].items() ] )*1.0
+		failed = sum( [v for k,v in offer["statii"].items() if k != "completed"] )*1.0
+		offer["failed%"] = int(failed*100/total)
+		offers.append(offer)
+#
+		offer = dict( zip( cols, res ) )
+		offer["statii"] = {}
 
-        offer = dict( zip( ["pub_name", "offer_id", "offer_name", "start_date", "end_date", "automatable", "offstatus"], results[0] ) )
-        offer["statii"] = {}
-        
-        for res in results:
-            if res[1] != offer["offer_id"]:
-                total = sum( [v for k,v in offer["statii"].items() ] )*1.0
-                failed = sum( [v for k,v in offer["statii"].items() if k != "completed"] )*1.0
-                offer["failed%"] = int(failed*100/total)
-                offers.append(offer)
-                offer = dict( zip( ["pub_name", "offer_id", "offer_name", "start_date", "end_date", "automatable", "offstatus"], res ) )
-                offer["statii"] = {}
+	    offer["statii"][res[7]] = res[8]
 
-            offer["statii"][res[7]] = res[8]
+	total = sum( [v for k,v in offer["statii"].items() ] )*1.0
+	failed = sum( [v for k,v in offer["statii"].items() if k != "completed"] )*1.0
+	offer["failed%"] = int(failed*100/total)
+	offers.append(offer)
 
-        total = sum( [v for k,v in offer["statii"].items() ] )*1.0
-        failed = sum( [v for k,v in offer["statii"].items() if k != "completed"] )*1.0
-        offer["failed%"] = int(failed*100/total)
-        offers.append(offer)
-
-        return offers
-    except Exception as e:
-        print "I am unable to connect to the database", e
-        return None
+	return offers
 
 #--------------------------------------------------------
 
@@ -217,26 +210,28 @@ purchase30_sql = ( "select date(occurrence at time zone 'PST'), count(i.id) "
 @app.route("/purchases/")
 def purchasereport():
     # get the raw data back from the db
-    results = execute_sql( purchase_sql, None )
+    (cols,results) = throw_sql( purchase_sql, DB_PBT)
 
 
     offers = []
     days = {}
     names = {}
     for r in results:
-        if r["count"] == 0:
+	rdict = dict(zip(cols, r))
+        if rdict["count"] == 0:
             continue; 
 
-        if not r["id"] in offers:
-            offers.append( r["id"] )
-            names[r["id"]] = r["headline"]
-        if not r["date"] in days:
-            days[r["date"]] = {}
-        days[r["date"]][r["id"]] = r["count"]
+        if not rdict["id"] in offers:
+            offers.append( rdict["id"] )
+            names[rdict["id"]] = rdict["headline"]
+        if not rdict["date"] in days:
+            days[rdict["date"]] = {}
+        days[rdict["date"]][rdict["id"]] = rdict["count"]
 
 
     context = {}
-    context["p30"] = execute_sql( purchase30_sql )
+    context["p30"] = (lambda c,rs: [dict(zip(c,r)) for r in rs])(*throw_sql( purchase30_sql, DB_PBT ))
+
     context["names"] = names
     context["days"] = days
     context["offers"] = offers
@@ -249,22 +244,6 @@ def purchasereport():
 #--------------------------------------------------------
 
 
-
-##TODO:move to sqlhelpers.py
-def execute_sql( sql, params=None ):
-    try:
-        conn = psycopg2.connect("dbname='silos' user='django' host='127.0.0.1'")
-        curr = conn.cursor()
-        curr.execute( sql, params )
-        results = curr.fetchall()
-        cols = [x.name for x in curr.description]
-
-	rows = [ dict( zip( cols, r ) ) for r in results ]
-        return rows
-    except Exception as e:
-	raise e
-        print "exception executing sql", e
-        return None
 
 ##TODO:break this out to reports.py?
 merchant_sql = ( "select o.id offerid, p.primary_channel_id channelid, o.end_date, ad.name, o.headline, g.title city, count(i.id), sum(i.amount), c.name channame, p.name pubname"
@@ -291,7 +270,8 @@ def merchant_report( name = None ):
     context["is_good"] = name and (len(name) > 3)
     context["query"] = name
     if context["is_good"]:
-        context["rows"] = execute_sql( merchant_sql, ('%'+name+'%','%'+name+'%',) )
+        cols, rows = throw_sql( merchant_sql, DB_PBT, params=('%'+name+'%','%'+name+'%',) )
+	context["rows"] = [dict(zip(cols,row)) for row in rows]
 
     return render_template( 'merchant.html', **context )
 
@@ -301,7 +281,7 @@ def listpubs():
     sql = """
         select title,name,id from core_publisher where status = 'active' order by title;
     """
-    cols, resultset = throw_sql(sql % {'account':id}    ); ##bind in the input params; and run it.
+    cols, resultset = throw_sql(sql   ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     for row in ROWS: ##add a new column, generated.
         row['report1'] = {'linkto':url_for('dealcats', id=row['id']),'show':row['title']} #to setup link 
@@ -392,6 +372,9 @@ dealcats = app.route("/pubreps/dealcats", methods=['GET','POST'])(dealcats)
 from reports import offers_detail
 offers_detail = app.route("/offers_detail")(offers_detail)
 
+from longrun import txn_detail
+txn_detail = app.route('/lr/txn_detail', methods=['GET','POST'])(txn_detail)
+
 def who_in(*groupnames):
    members = []
    for group in groupnames:
@@ -440,10 +423,13 @@ gen_skus_wform = app.route("/volusion", methods=['GET', 'POST'] )(gen_skus_wform
 
 #from long_running import ui_invoke_long_running
 #ui_invoke_long_running = app.rount('/long_running/')(ui_invoke_long_running)
+from longrun import request_rpt
+request_rpt = app.route("/lr/", methods=['GET','POST'])(request_rpt)
 
 @app.route("/cctrans")
 def cctrans():
-    conn = Connection("mongodb://warehouse-ro:fr33$tuff@dw.tippr.com/warehouse", read_preference=ReadPreference.SECONDARY_ONLY)
+#    conn = Connection("mongodb://warehouse-ro:fr33$tuff@dw.tippr.com/warehouse", read_preference=ReadPreference.SECONDARY_ONLY)
+    conn = mongo_connect(DB_EDW,  read_preference=ReadPreference.SECONDARY_ONLY)
     coll = conn.warehouse.events
 
     query = { 'event' : { '$regex' : '^payments.authorization.' } ,
@@ -505,7 +491,8 @@ def action():
 
     status = "haven't tried anything"
 
-    conn = Connection("mongodb://code_store:fr33$tuff@master.dw.tippr.com/code_store")
+#    conn = Connection("mongodb://code_store:fr33$tuff@master.dw.tippr.com/code_store")
+    conn = mongo_connect(DB_CODESTORE)
 
     if (obtype == "codeset"):
 	if (act== "activate"):
@@ -536,7 +523,9 @@ def upload():
 
 
     # Write the codeset
-    conn = Connection("mongodb://code_store:fr33$tuff@master.dw.tippr.com/code_store")
+#    conn = Connection("mongodb://code_store:fr33$tuff@master.dw.tippr.com/code_store")
+    conn = mongo_connect(DB_CODESTORE)
+
     db = conn.code_store
     coll = conn.code_store.codes
    
