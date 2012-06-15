@@ -66,25 +66,19 @@ def pbt_channel_sales_by_offer_type_detail(channel = 'tippr-honolulu'):
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 def tom_sales_by_date():
-    sql = """
-    select promotions_run.end_date::varchar "promo_end", count(distinct(promotions_run.id)) "promotions", count(distinct(voucher.id)) "vouchers_sold", sum(product.price)::integer "gross_sales" from marketplace_promotion promotions_run left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher where publisher.id = promotions_run.publisher_id and promotions_run.end_date < date(now()) group by 1 having count(distinct(voucher.id)) > 1 order by promotions_run.end_date::varchar desc;  
-    """
+    sql = """ 
+    select promo_start "promo_start", sum(promotions) "promotions", sum(vouchers_sold) "vouchers_sold", sum(gross_sales) "gross_sales" from (select date(promotions_run.start_date at time zone 'pst')::varchar "promo_start", agency.name "agency", count(distinct(promotions_run.id)) "promotions", count(distinct(voucher.id)) "vouchers_sold", product.price * count(voucher.id)::integer "gross_sales" from marketplace_promotion promotions_run left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher, marketplace_offer offer, marketplace_agency agency where agency.id = offer.agency_id and publisher.id = promotions_run.publisher_id and promotions_run.end_date < date(now()) and offer.id = promotions_run.offer_id  group by 1,2,product.price having count(distinct(voucher.id)) > 1) as detail group by 1 order by 1 desc;
+"""
     cols, resultset = throw_sql(sql,DB_TOM    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
- 
-
     metrics = {}
     metrics['details'] = {}
-    metrics['details']['data_summary'] = ROWS
-    sql = """ 
-	select promotions_run.end_date::varchar "promo_end", publisher.name "publisher", promotions_run.name "promotion", count(distinct(voucher.id)) "vouchers_sold", sum(product.price)::integer "gross_sales" from marketplace_promotion promotions_run left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher where publisher.id = promotions_run.publisher_id and promotions_run.end_date < date(now()) group by 1,2,3 having count(distinct(voucher.id)) > 1 order by promotions_run.end_date::varchar desc;
-    """
-    cols, resultset = throw_sql(sql,DB_TOM    ); ##bind in the input params; and run it.
-    ROWS = [dict(zip(cols,row)) for row in resultset]
+
     metrics['details']['data_detail'] = ROWS
+    metrics['details']['data_summary'] = ROWS
 
     context = {};
-    TITLE='TOM SALES BY DATE'; SUBTITLE= '';
+    TITLE='TOM SALES BY PROMOTION START DATE'; SUBTITLE= 'all offer sales attributed to the offer start date for this report';
     searchform = ''
     format = request.args.get('format','grid');
     if format == 'csv':
@@ -234,7 +228,11 @@ select distinct(referral.transaction_id) "transaction_id", channel.name "channel
       # WE ALLOW THE REFERRAL TIMESTAMP AND TRANSACTION TIMESTAMP TO DIFFER BY UP TO ONE DAY
 
 
-def tom_activity_by_agency():
+def tom_activity_by_agency(rdate='2012-05-01'):
+    rdate_in = request.args.get('rdate')
+    if rdate_in:
+        rdate = rdate_in
+
     # agency name	
     #offers entered	
     # offers approved	
@@ -247,23 +245,30 @@ def tom_activity_by_agency():
 
 
     sql = """
-    select agency.name "agency", count(distinct(offers_entered.id)) "entered_offers", count(distinct(offers_approved.id)) "approved_offers", count(distinct(promotions_created.id)) "promotions_created", count(distinct(promotions_run.id)) "promotions_run", count(distinct(voucher.id)) "vouchers_sold" from marketplace_offer offers_entered left join marketplace_offer offers_approved on (offers_entered.id = offers_approved.id and offers_approved.status = 'approved') left join marketplace_promotion promotions_created on (offers_entered.id = promotions_created.offer_id) left join marketplace_promotion promotions_run on (promotions_created.id = promotions_run.id and promotions_run.status in ('closed','finalized')) left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id), marketplace_agency agency where agency.id = offers_entered.agency_id group by 1;
-    """
-    cols, resultset = throw_sql(sql,DB_TOM    ); ##bind in the input params; and run it.
+    select agency::varchar "agency", sum(entered_offers)::integer "offers_entered", sum(run_offers)::integer "offers_run", sum(promotions_created)::integer "promotions_created", sum(promotions_run)::integer "promotions_run", sum(vouchers_sold)::integer "vouchers_sold", sum(vouchers_price)::float "gross_sales" from (
+
+select agency.name "agency", offers_entered.name "offer_name", count(distinct(offers_entered.id)) "entered_offers", count(distinct(promotions_run.offer_id)) "run_offers", count(distinct(promotions_created.id)) "promotions_created", count(distinct(promotions_run.id)) "promotions_run", count(distinct(voucher.id)) "vouchers_sold", count(distinct(voucher.id)) * product.price "vouchers_price" from marketplace_agency agency,marketplace_offer all_offers left join marketplace_offer offers_entered on (all_offers.id = offers_entered.id and date(date_trunc('month', offers_entered.create_time at time zone 'pst')) = '2012-05-01') left join marketplace_promotion promotions_created on (all_offers.id = promotions_created.offer_id and date(date_trunc('month', promotions_created.create_time at time zone 'pst')) = '2012-05-01') left join marketplace_promotion promotions_run on (all_offers.id = promotions_run.offer_id and promotions_run.status in ('closed','finalized') and date(date_trunc('month', promotions_run.create_time at time zone 'pst')) = '2012-05-01') left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_product product on (pi.product_id = product.id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status='assigned') where agency.id = all_offers.agency_id group by 1,2, product.price
+
+) as summary_data group by 1 having (sum(entered_offers) > 0 OR sum(promotions_created) > 0 or sum(promotions_run) > 0 or sum(vouchers_sold) > 0 or sum(vouchers_price) > 0);
+"""
+    cols, resultset = throw_sql(sql % {'rdate':rdate},DB_TOM    ); ##bind in the input params; and run it.
     ROWS = [dict(zip(cols,row)) for row in resultset]
     COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
-        {'k':'agency'                     ,'l': 'Agency'               ,'u': None              ,'w': '120px'}
-        ,{'k':'entered_offers'                  ,'l': 'Offers Entered'          ,'u': 'integer'              ,'w':'80px'}
-        ,{'k':'approved_offers'                ,'l': 'Offers Approved'  ,'u': 'integer'         ,'w': '80px'}
+        {'k':'agency'                     ,'l': 'Agency'               ,'u': None              ,'w': '150px'}
+        ,{'k':'offers_entered'                  ,'l': 'Offers Entered'          ,'u': 'integer'              ,'w':'80px'}
+	,{'k':'offers_run'			,'l': 'Offers Run'		,'u': 'integer' ,'w': '80px'}
 	,{'k':'promotions_created'		,'l': 'Promotions Created','u': 'integer'	,'w': '80px'}
 	,{'k':'promotions_run'			,'l': 'Promotions Run','u': 'integer'		,'w': '80px'}
 	,{'k':'vouchers_sold'			,'l': 'Vouchers Sold','u': 'integer'		,'w': '80px'}
+        ,{'k':'gross_sales'                   ,'l': 'Gross Sales','u': 'float'            ,'w': '80px'}
+
 
 
     ]
 
     context = {};
-    TITLE='TOM ACTIVITY BY AGENCY SOURCE'; SUBTITLE= '';
+    TITLE="TOM ACTIVITY BY AGENCY SOURCE FOR %s"%rdate; 
+    SUBTITLE= 'Adjust activity month by modifying URL';
     searchform = ''
     format = request.args.get('format','grid');
     if format == 'csv':
@@ -835,6 +840,59 @@ def dealcats(id='test'):
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, #SUBTITLE=SUBTITLE,
 		  SELECTOR=SELECTOR, BACK=url_for('listpubs') );
+
+def schools_referral(yyyymm = None):
+	"""
+		This report delivers distinct emails from the referral table to enable MSNOffers.com school payouts
+	"""
+	month = datetime.date(2011, 1, 1) #starting month that we have data for
+	pick_month = []; 
+	today = datetime.date.today()
+	todaykey = today.strftime('%Y-%m')
+	while month < today:
+		monthkey = month.strftime( '%Y-%m')
+		monthvalue = month.strftime( '%B %Y') + (
+			" -- MTD" if monthkey == todaykey else "")
+		pick_month.append((monthkey,monthvalue))
+		month = month + datetime.timedelta(days=31) 
+		month = month - datetime.timedelta(month.day - 1) #go to first of month 
+
+	yyyymm = yyyymm or todaykey #pick current as default	
+	SELECTOR = {
+		'list':		pick_month
+		,'current': 	yyyymm
+		,'submit_url': '/schools_referral/'
+		,'name':	'Month'
+	}
+	sql = """
+	SELECT occurrence::varchar, email, source, campaign
+ 	FROM (SELECT DISTINCT ON (ce.email) cr.occurrence, ce.email, cr.source, cr.campaign 
+	FROM core_emailaddress AS ce, core_referral AS cr, core_channel AS cc, core_account AS ca 
+	WHERE ce.account_id = cr.account_id 
+	AND cr.channel_id = cc.id 
+	AND cr.account_id = ca.id 
+	AND ca.publisher_id = '2e994e6d08dc40fa810037514affeeca' 
+	AND (ce.hardbounced = 'f' OR ce.hardbounced IS NULL)
+	AND (date(date_trunc('month',cr.occurrence)) = '%(month)s')) AS LolWut ORDER BY occurrence ASC;
+
+	"""
+	cols, resultset = throw_sql(sql  % {'month':yyyymm+'-01'}, DB_PBT)
+	ROWS = [dict(zip(cols,row)) for row in resultset]
+	COLS = [#k:field_name		l:title(\n)			u:formatting		w:width
+		{'k':'occurrence'	,'l':'Date/Time'		,'u': None		,'w': '130px'}
+		,{'k':'email'		,'l':'Email Address'		,'u': None		,'w': '200px'}
+		,{'k':'source'		,'l':'Source'			,'u': None		,'w': '200px'}
+		,{'k':'campaign'	,'l':'Campaign'			,'u': None		,'w': '120px'}
+	]	
+	TITLE='MSNOFFERS SCHOOL REFERRAL REPORT'; #SUBTITLE='(for %s)'%pick_month[yyyymm]
+
+    	format = request.args.get('format','grid');
+    	if format == 'csv':
+		return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='schools_referral-v1'));	
+    	else: #assume format == 'grid':
+		return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, 
+			SELECTOR=SELECTOR);
+
 
 def agent_sales(yyyymm = None):
 	"""

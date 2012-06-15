@@ -89,7 +89,7 @@ def index():
         reports['MARKETPLACE REPORTS'] = [
                 {'name': 'TOM voucher sales by site'           ,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
                 ,{'name': 'TOM sales by date'                   ,'url': url_for('tom_sales_by_date')}
-                ,{'name': 'TOM activity by agency'              ,'url': url_for('tom_activity_by_agency')}
+                ,{'name': 'TOM activity by agency'              ,'url': url_for('tom_activity_by_agency',rdate='2012-05-01')}
                 ,{'name': 'TOM activity by publisher'           ,'url': url_for('tom_activity_by_publisher')}
                 ,{'name': 'TOM publisher promotion detail'      ,'url': url_for('tom_publisher_promotions',publisher='BigTip')}
                 ,{'name': 'TOM local inventory levels'          ,'url': url_for('tom_local_inventory',status='approved')}
@@ -111,6 +111,7 @@ def index():
 		,{'name': 'Sales Report by Agent'		,'url': url_for('agent_sales')}
 		,{'name': 'Channel Sales By Offer Type Summary'  ,'url': url_for('pbt_channel_sales_by_offer_type_summary', channel='tippr-honolulu')}
 		,{'name': 'Channel Sales By Offer Type Detail', 'url': url_for('pbt_channel_sales_by_offer_type_detail', channel='tippr-honolulu')}
+		,{'name': 'Schools Referral Report for MS Offers', 'url': url_for('schools_referral')}
 		] 
 
         reports['OTHER REPORTS'] = [
@@ -119,7 +120,8 @@ def index():
 
 
 	reports['TOOLS'] = [
-		{'name': 'Finn & Maddy Code Generator'		,'url': '/volusion'}
+		{'name': 'Finn & Maddy Code Generator'		,'url': '/volusion'},
+        {'name': 'Email Schedule Checker',           'url': '/campaigns'}
 	]	
 
 	return render_template("index.html", REPORTS=reports);
@@ -246,18 +248,43 @@ def purchasereport():
 
 
 ##TODO:break this out to reports.py?
-merchant_sql = ( "select o.id offerid, p.primary_channel_id channelid, o.end_date, ad.name, o.headline, g.title city, count(i.id), sum(i.amount), c.name channame, p.name pubname"
-  		 "   from core_advertiser ad, core_offer o, core_publisher p, core_channel c, core_geography g, core_item i, core_transaction t"
-		 "  where (o.advertiser_id = ad.id)"
-		 "    and (o.publisher_id = p.id)"
-		 "    and (p.primary_channel_id = c.id)"
-		 "    and (c.geography_id = g.id)"
-		 "    and (i.offer_id = o.id)"
-		 "    and (i.transaction_id = t.id)"
-		 "    and (t.status in ('completed','pending'))"
-		 "    and ((ad.name ilike %s) or (o.headline ilike %s))"
-		 "  group by o.id, p.primary_channel_id, o.end_date, ad.name, o.headline, city, c.name, p.name"
-		 "  order by end_date desc;" )
+#merchant_sql = ( "select o.id offerid, p.primary_channel_id channelid, o.end_date, ad.name, o.headline, g.title city, count(i.id), sum(i.amount), c.name channame, p.name pubname"
+#  		 "   from core_advertiser ad, core_offer o, core_publisher p, core_channel c, core_geography g, core_item i, core_transaction t"
+#		 "  where (o.advertiser_id = ad.id)"
+#		 "    and (o.publisher_id = p.id)"
+#		 "    and (p.primary_channel_id = c.id)"
+#		 "    and (c.geography_id = g.id)"
+#		 "    and (i.offer_id = o.id)"
+#		 "    and (i.transaction_id = t.id)"
+#		 "    and (t.status in ('completed','pending'))"
+#		 "    and ((ad.name ilike %s) or (o.headline ilike %s))"
+#		 "  group by o.id, p.primary_channel_id, o.end_date, ad.name, o.headline, city, c.name, p.name"
+#		 "  order by end_date desc;" )
+merchant_sql = (" with counts as " 
+		"  (select o.id offer_id, t.status, count(i.id) num_stat, sum(i.amount) amount_stat "
+                "   from core_advertiser ad, core_item i, core_transaction t, core_offer o "
+                "   where (i.transaction_id = t.id) "
+		"   and (i.offer_id = o.id) and (ad.id = o.advertiser_id) "
+                "   and ((ad.name ilike %s) or "
+		"   (o.headline ilike %s)) group by o.id, t.status )"
+		"  select  o.id offerid, p.primary_channel_id, g.title city, o.end_date, ad.name advertiser, p.name pubname, c.name channame, o.headline, count(i.id) voucher_count, sum(i.amount) voucher_sum, "
+		"  (select sum(num_stat) from counts where offer_id = o.id and counts.status = 'completed') as completed, "
+		"  (select sum(amount_stat) from counts where offer_id = o.id and counts.status = 'completed') as completed_amount, "
+
+		"  (select sum(num_stat) from counts where offer_id = o.id and counts.status = 'voided') as voided, "
+                "  (select sum(amount_stat) from counts where offer_id = o.id and counts.status = 'voided') as voided_amount, "
+
+		"  (select sum(num_stat) from counts where offer_id = o.id and counts.status = 'aborted') as aborted, "
+                "  (select sum(amount_stat) from counts where offer_id = o.id and counts.status = 'aborted') as aborted_amount, "
+
+		"  (select sum(num_stat) from counts where offer_id = o.id and counts.status = 'failed') as failed, "
+                "  (select sum(amount_stat) from counts where offer_id = o.id and counts.status = 'failed') as failed_amount "
+
+		"   from core_advertiser ad, core_item i, core_transaction t, core_offer o, core_publisher p, core_channel c, core_geography g "
+		"   where (i.transaction_id = t.id) and (i.offer_id = o.id) and (ad.id = o.advertiser_id) and (t.publisher_id = p.id) and (p.primary_channel_id = c.id) and (c.geography_id = g.id) "
+		"   and ((ad.name ilike %s) or (o.headline ilike %s)) "
+		"   group by o.id, o.end_date, o.headline, ad.name, p.name, p.primary_channel_id, c.name, g.title;"
+	)
 
 @app.route("/merchant")
 @app.route("/merchant/")
@@ -270,7 +297,7 @@ def merchant_report( name = None ):
     context["is_good"] = name and (len(name) > 3)
     context["query"] = name
     if context["is_good"]:
-        cols, rows = throw_sql( merchant_sql, DB_PBT, params=('%'+name+'%','%'+name+'%',) )
+        cols, rows = throw_sql( merchant_sql, DB_PBT, params=('%'+name+'%','%'+name+'%','%'+name+'%','%'+name+'%',) )
 	context["rows"] = [dict(zip(cols,row)) for row in rows]
 
     return render_template( 'merchant.html', **context )
@@ -300,6 +327,9 @@ def listpubs():
     SUBTITLE='';
     return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
+from campaigns import showcampaigns
+showcampaigns = app.route("/campaigns/")(showcampaigns)
+
 from reports import account_detail
 account_detail = app.route("/account_detail/<id>")(account_detail)
 account_detail = app.route("/account_detail/", methods=['GET','POST'])(account_detail)
@@ -322,6 +352,8 @@ tom_sales_by_date = app.route("/tom_sales_by_date/", methods=['GET','POST'])(tom
 
 from reports import tom_activity_by_agency
 tom_activity_by_agency = app.route("/tom_activity_by_agency/", methods=['GET','POST'])(tom_activity_by_agency)
+tom_activity_by_agency = app.route("/tom_activity_by_agency/<rdate>")(tom_activity_by_agency)
+
 
 from reports import tom_activity_by_publisher
 tom_activity_by_publisher = app.route("/tom_activity_by_publisher/", methods=['GET','POST'])(tom_activity_by_publisher)
@@ -374,6 +406,10 @@ offers_detail = app.route("/offers_detail")(offers_detail)
 
 from longrun import txn_detail
 txn_detail = app.route('/lr/txn_detail', methods=['GET','POST'])(txn_detail)
+
+from reports import schools_referral
+schools_referral = app.route("/schools_referral/<yyyymm>")(schools_referral)
+schools_referral = app.route("/schools_referral/")(schools_referral)
 
 def who_in(*groupnames):
    members = []
