@@ -1,163 +1,11 @@
-from jinja2 import Template
-from sqlhelpers import *
-import datetime
-import utils
-import time
+#from jinja2 import Template
+#from sqlhelpers import *
+#import datetime
+#import utils
+#import time
 
+from report_query_framework import *
 
-
-
-
-class FixtureHelper():
-#	FIXTURE_SCHEME = MONGO | S3 | LOCAL
-#	def list_fixtures(
-#	def save_as_fixture(
-#		store_as_mongo_fixtures(
-#	def load_from_fixture(
-	pass		
-
-
-
-
-class QueryDef():
-	#QueryDef defines a query, and a set of available qualifiers
-	# a ReportDef will be tied to a specific QueryDef that can feed it.
-	# 
-	# the QueryDef class is the definition... a QueryDef object has the query params filled in 
-	# 
-	#	might want QueryDef <- Fixture, so that either one can be a datasource
-
-	dataset = {}
-	sql = ''
-	DB = DB_PBT
-	DB_name = 'DB_PBT'
-	
-	limit = None
-
-#	def __init__(self,**kwargs):
-#		self.qualify(**kwargs)
-
-	def qualify():
-		pass
-
-	def load_dataset(self):
-		timestart = time.time()
-		cols, resultset = throw_sql(self.sql, self.DB) #DB_PBT)
-
-		ROWS = [dict(zip(cols,row)) for row in resultset]
-		COLS = cols
-		#	return render_template("debugging.html", SQL=sql);
-		secselapsed = time.time()-timestart
-		META = {
-			'pulled_at'		: datetime.datetime.now()
-			,'row_count'	: len(ROWS)
-			,'query_response_secs'	: int(secselapsed)
-			,'db'			: self.DB_name
-			,'sql'			: self.sql
-#			,'qualifiers'	: self.qualifiers
-		}
-
-		self.dataset = dict(ROWS=ROWS, COLS=COLS, qualifiers=self.qualifiers)
-		self.dataset.update(META) #add in our META key-values
-		return self.dataset
-
-	def command_line(self): #initially written to build the arg-parser -- not used anymore.
-		import argparse
-		parser = argparser.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-		for qname, q in self.qualifiers.iteritems():
-			z = {'dest':qname}
-			for x,y in {'action':'action','choices':'pick', 'help':'help', 'default':'default',
-					'metavar':'metavar', 'type':'type'}.iteritems():
-				if y in q:
-					z[x]=q[y]
-			parser.add_argument(*q['args'],**z)
-		arguments = parser.parse_args(sys.argv[1:])
-
-	def subparsers_setup(self, parser):
-		import argparse
-		subparser_mount = parser.add_subparsers(title='Available Reports',description='Long-running Reports that have been defined in the Reporting System',help='use @@@ --help to get detail for a specific report.')	
-		return subparser_mount
-
-	def subparser_add(self, subparser_mount):
-		sp = subparser_mount.add_parser(
-			self.base_query 
-			,description='%s v.%s -- %s'%(self.base_query, self.version, self.descript) 
-			,help=self.__doc__
-                	,epilog="---c.2012 tippr.com---\n")
-			#aliases=[]
-		sp.add_argument('--version', action='version', help='show the version# of the query', version='%s v.%s'%(self.base_query, self.version))
-		for (qname, q) in self.qualifiers.iteritems():
-			z = {'dest':qname}
-			w = self.type_context(q['metatype']) #load any type-specific defaults
-			for (x,y) in {'action':'action','choices':'pick', 
-					'help':'help', 'default':'default', 
-					'metavar':'metavar', 'type':'coerce', 
-					'nargs':'nargs'}.iteritems():
-				if y in w:
-					z[x]=w[y]
-				if y in q:
-					z[x]=q[y]
-#			print z
-			sp.add_argument(*q['args'],**z)
-		sp.set_defaults(func=self)
-
-#	def pull_qualifiers(self, d_args):
-#		"""
-#		Makes a qualifier-set (useful for filling in the values for my qualifiers) 
-#		from the command-line argument list (parsed).
-#		DESTRUCTIVE
-# 
-#		"""
-#		return dict([(k, d_args.pop(k, None)) for k in self.qualifiers.keys()])
-	def parser_pull_qualifiers(self, ns_args):
-		"""
-		Makes a qualifier-set (useful for filling in the values for my qualifiers) 
-		from the command-line argument list (parsed).
-		"""
-		return dict([(k, getattr(ns_args,k)) for k in self.qualifiers.keys()])
-	
-	def post_pull_qualifiers(self, args): #call with request.values
-	# nb. use getlist(q, default)  for multis, get(q, default)
-		#TOBE TESTED
-		params = {}
-		for key,qualifier in self.qualifiers.iteritems():
-			params[key] = (args.getlist if qualifier['allow_multi'] 
-				else args.get)(key,q.default)		
-		return params
-
-#TODO: move this into a class to map types into different handling, perhaps the widget mapping too
-	def type_context(self,type_code):	#USE OUR keys!! 
-		#globals = {'
-		return 	{'date':
-				{'ui_widget'	:'date-picker'
-				,'coerce'	:lambda x: datetime.datetime.strptime(x, '%Y%m%d') #can take a callable
-				,'metavar'	:'<yyyymmdd>'
-				,'allow_multi'	:False
-				,'default'	:None
-				}
-			,'choice': 
-				{'ui_widget'	:'drop-down'
-				,'metavar'	:'<name>'
-				,'allow_multi'	:False
-				,'default'	:None
-				}
-			,'multi-choice':
-				{'ui_widget'	:'radio-buttons'
-	#			,'metavar'	:'@@@@'
-				,'allow_multi'	:True
-				,'nargs'	:'+'
-				,'default'	:[]
-				}
-			,'boolean':
-				{'ui_widget'	:'check-box'
-	#			,'coerce'	:bool #don't need to with action=store_true
-	#			,'metavar'	:@@@
-				,'allow_multi'	:False	
-				,'action'	:'store_true'
-				,'default'	:False
-				}
-			}[type_code];	
-		
 
 class Q_Txn_Detail(QueryDef):
 	"""
@@ -173,29 +21,25 @@ class Q_Txn_Detail(QueryDef):
 	qualifiers = {#todo: include info to allow shell args or web form
 		##TODO: CAN also use required:True
 		##should also figure out how to handle sql-lookups, and multi-selects
-		'publisher':	{
+		'publisher':ChoiceQualifier({
 				'args'		: ('-P','--publisher')
 				,'help'		:'Pick a Publisher to isolate to'
 		#		,'metavar'	:'publisher'
-				,'metatype'		:'choice'
 				,'pick'		: ['225besteats', 'yollar', 'tippr', 'msn']
-		#		,'picksql'	: sql_pull_lookup('select name, title from core_publisher order by title;',DB_PBT)
-				}	#('ALL':None, string,required) 
-		,'start_dt':	{
+				,'picksql'	: sql_pull_lookup('select name, title from core_publisher order by title;',DB_PBT)
+				})	#('ALL':None, string,required) 
+		,'start_dt':DateQualifier({
 				'args'		:('-S','--start')
 				,'help'		:'Include transaction after (or on) this starting date; format is YYYYMMDD'
-				,'metatype'		:'date'
-				}	
-		,'end_dt':	{
+				})	
+		,'end_dt':DateQualifier({
 				'args'		:('-E','--end')
 				,'help'		:'Include transactions before (or on) this ending date; format is YYYYMMDD'
-		 		,'metatype'		:'date'
-				}	#(date,None) #must > start_dt, limit to <=today.  meta values= TODAY, ...
-		,'credits_only'	:{
+				})	#(date,None) #must > start_dt, limit to <=today.  meta values= TODAY, ...
+		,'credits_only'	:BooleanQualifier({
 				'args'		:('-C', '--credits-only')
-				,'metatype'		: 'boolean'
 				,'help'		:'Show only Credits'
-				}	#(bool,False) 
+				})	#(bool,False) 
 		}
 
 #	def __init__(self, **kwargs):
@@ -272,7 +116,7 @@ class Q_Txn_Detail(QueryDef):
 					{% if CREDITS %}and t.credit_amount > 0 {% endif %}  
 					{% if PUB %} and o.publisher = '{{ PUB }}' {% endif %}
 					{# if OFFER_LIST %} and o.id = any ('{ {{OFFER_LIST }} }') {% endif #}
-				{% if LIMIT %}{%endif%} LIMIT {{ LIMIT }}
+				{% if LIMIT %} LIMIT {{ LIMIT }} {% endif %}
 				;   	
 		"""
 	
@@ -283,7 +127,7 @@ class Q_Txn_Detail(QueryDef):
 			sql_user_info=sql_user_info) 
 
 		build_sql = Template(build_sql).render(	#then, substitute
-			LIMIT=self.limit
+			LIMIT=self.limit or 0
 			,TXNS_AFTER=self.qualifiers["start_dt"]
 			,TXNS_BEFORE=self.qualifiers["end_dt"]
 			, CREDITS=self.qualifiers["credits_only"]
@@ -309,40 +153,36 @@ class Q_TXNPayment_Detail(QueryDef):
 	qualifiers = {#todo: include info to allow shell args or web form
 		##TODO: CAN also use required:True
 		##should also figure out how to handle sql-lookups, and multi-selects
-		'publisher':	{
+		'publisher':	ChoiceQualifier({
 				'args'		: ('-P','--publisher')
 				,'help'		:'Pick a Publisher to isolate to'
 		#		,'metavar'	:'publisher'
-				,'metatype'	:'choice'
 				,'pick'		: ['225besteats', 'yollar', 'tippr', 'msn']
-		#		,'picksql'	: sql_pull_lookup('select name, title from core_publisher order by title;',DB_PBT)
-				}	#('ALL':None, string,required) 
-		,'start_dt':	{
-				'args'		:('-S','--start')
+				,'picksql'	: sql_pull_lookup("""
+					SELECT name, title 
+						FROM core_publisher 
+						WHERE status='active' 
+						ORDER BY title;"""
+					,DB_PBT)
+				})	#('ALL':None, string,required) 
+		,'start_dt':	DateQualifier({
+				'label'		:'Start Date (mm/dd/yy)'
+				,'args'		:('-S','--start')
 				,'help'		:'Include transaction after (or on) this starting date; format is YYYYMMDD'
-				,'metatype'	:'date'
-				}	
-		,'end_dt':	{
+				})	
+		,'end_dt':	DateQualifier({
+				'label'		:'End Date (mm/dd/yy)',
 				'args'		:('-E','--end')
 				,'help'		:'Include transactions before (or on) this ending date; format is YYYYMMDD'
-				,'metatype'	:'date'
-				}	#(date,None) #must > start_dt, limit to <=today.  meta values= TODAY, ...
-		,'credits_only'	:{
+				})	#(date,None) #must > start_dt, limit to <=today.  meta values= TODAY, ...
+		,'credits_only'	:BooleanQualifier({
 				'args'		:('-C', '--credits-only')
-				,'metatype'	:'boolean'
 				,'help'		:'Show only Credits'
-				}	#(bool,False) 
+				})	#(bool,False) 
 		}
 
 #	def __init__(self, **kwargs):
 #		super(Q_Txn_Detail,self).__init__(**kwargs)
-
-	def qualify(self, publisher=None, start_dt='02-16-2012', end_dt='02-29-2012', credits_only=True):
-		self.qualifiers["publisher"] = publisher
-		self.qualifiers["start_dt"] = start_dt
-		self.qualifiers["end_dt"] = end_dt
-		self.qualifiers["credits_only"] = credits_only
-		self.eval_query()
 
 	def OLDeval_query(self):
 		"""
@@ -452,9 +292,9 @@ class Q_TXNPayment_Detail(QueryDef):
 		#TODO: to add channel info: go offer->channel, and ->geography, to get city (or use channel title)
 		build_sql = """
 	SELECT 
-/*pmt*/	  		p.id pmt_id, p.created::DATE::VARCHAR pmt_date, p.amount pmt_amount, p.charge_type charge_type, p.transaction_id 
+/*pmt*/	  		p.id pmt_id, p.created::DATE::VARCHAR pmt_date, p.amount::FLOAT pmt_amount, p.charge_type charge_type, p.transaction_id 
 /*mpmt*/		,substring(p._polymorphic_identity from '[^.]*$') pmt_type, mp.provider gateway, mp.providerid gateway_txn_id
-/*txn*/			,t.id txn_id, t.occurrence::DATE::VARCHAR txn_date, t.status txn_status, t.account_id user_id, t.amount txn_amount 
+/*txn*/			,t.id txn_id, t.occurrence::DATE::VARCHAR txn_date, t.status txn_status, t.account_id user_id, t.amount::FLOAT txn_amount 
 			,(SELECT sum(p2.amount) 
 				FROM core_creditpayment cp, core_payment p2 
 				WHERE cp.payment_ptr_id = p2.id and transaction_id = t.id)::FLOAT txn_credits
@@ -512,10 +352,10 @@ class Q_TXNPayment_Detail(QueryDef):
 
 		build_sql = Template(build_sql).render(	#then, substitute
 			LIMIT=self.limit
-			,PMTS_AFTER=self.qualifiers["start_dt"]
-			,PMTS_BEFORE=self.qualifiers["end_dt"]
-			, CREDITS=self.qualifiers["credits_only"]
-			, PUB=self.qualifiers["publisher"])
+			,PMTS_AFTER=self.qualifiers["start_dt"].value_cleaned
+			,PMTS_BEFORE=self.qualifiers["end_dt"].value_cleaned
+			, CREDITS=self.qualifiers["credits_only"].value_cleaned
+			, PUB=self.qualifiers["publisher"].value_cleaned)
 
 			#expects offer_list to be string,string,string -- not quoted.
 			#todo: add the numerics: voucher#, net, gross, etc.
@@ -540,34 +380,30 @@ class Q_MSN_Detail(QueryDef):
 
 	qualifiers = {#todo: include info to allow shell args or web form
 		##TODO: CAN also use required:True
-		'publisher':	{
+		'publisher':	ChoiceQualifier({
 				'args'		:('-P','--publisher')
 				,'help'		:'Pick a Publisher to isolate to'
 		#		,'metavar'	:'publisher'
-		 		,'metatype'	:'choice'
 				,'pick'		:['225besteats', 'yollar', 'tippr', 'msn']
-				}	#('ALL':None, string,required) 
-		,'start_dt':	{
+				})	#('ALL':None, string,required) 
+		,'start_dt':	DateQualifier({
 				'args'		:('-S','--start')
 				,'help'		:'Include transaction after (or on) this starting date; format is YYYYMMDD'
-				,'metatype'		:'date'
-				}	
-		,'end_dt':	{
+				})	
+		,'end_dt':	DateQualifier({
 				'args'		:('-E','--end')
 				,'help'		:'Include transactions before (or on) this ending date; format is YYYYMMDD'
-				,'metatype'	:'date'
-				}	#(date,None) #must > start_dt, limit to <=today.  meta values= TODAY, ...
-		,'offer_list'	:{#?offer_list?
-				'args'		:('-o', '--offer')
-				,'metatype'	:'multi-choice'
-				,'metavar'	:'0a0f12137cfb4a288542a3696e21e28c'
-				,'help'		:'Show only these Offers'
-				}	#(list,[]) 
-		,'completed_only':{
+				})	#(date,None) #must > start_dt, limit to <=today.  meta values= TODAY, ...
+#TODO:FIX		,'offer_list'	:{#?offer_list?
+	#			'args'		:('-o', '--offer')
+	#			,'metatype'	:'multi-choice'
+	#			,'metavar'	:'0a0f12137cfb4a288542a3696e21e28c'
+	#			,'help'		:'Show only these Offers'
+	#			}	#(list,[]) 
+		,'completed_only':BooleanQualifier({
 				'args'		:('-C', '--complete-only')
-				,'metatype'	:'boolean'
 				,'help'		:'Show only Completed transactions'
-				}	#(bool,False) 
+				})	#(bool,False) 
 		}
 
 	def qualify(self, publisher=None, start_dt='02-16-2012', end_dt='02-29-2012', offer_list=[], completed_only=True):
@@ -684,33 +520,6 @@ class Q_MSN_Detail(QueryDef):
         #todo: add the numerics: voucher#, net, gross, etc.
 
 		self.sql = build_sql
-
-class RepDef():
-		#RepDef is a report definition, the name, the layout, who can access it, what query it needs, 
-	pass
-	def subparser_add(self, subparser_mount):
-		sp = subparser_mount.add_parser(
-			self.slug
-			,description='%s v.%s -- %s'%(self.name, self.version, self.descript) 
-			,help=self.__doc__
-                	,epilog="---c.2012 tippr.com---\n")
-			#aliases=[]
-		sp.add_argument('--version', action='version', help='show the version# of the report', version='%s v.%s'%(self.slug, self.version))
-		query = self.require_query()
-		for (qname, q) in query.qualifiers.iteritems():
-			z = {'dest':qname}
-			w = query.type_context(q['metatype']) #load any type-specific defaults
-			for (x,y) in {'action':'action','choices':'pick', 
-					'help':'help', 'default':'default', 
-					'metavar':'metavar', 'type':'coerce', 
-					'nargs':'nargs'}.iteritems():
-				if y in w:
-					z[x]=w[y]
-				if y in q:
-					z[x]=q[y]
-#			print z
-			sp.add_argument(*q['args'],**z)
-		sp.set_defaults(func=self)
 
 
 class R_Txn_Detail(RepDef):

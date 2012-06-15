@@ -404,9 +404,6 @@ dealcats = app.route("/pubreps/dealcats", methods=['GET','POST'])(dealcats)
 from reports import offers_detail
 offers_detail = app.route("/offers_detail")(offers_detail)
 
-from longrun import txn_detail
-txn_detail = app.route('/lr/txn_detail', methods=['GET','POST'])(txn_detail)
-
 from reports import schools_referral
 schools_referral = app.route("/schools_referral/<yyyymm>")(schools_referral)
 schools_referral = app.route("/schools_referral/")(schools_referral)
@@ -433,12 +430,6 @@ def restrict_to(*whitelist): #
    return decorator
 
 
-#from reports import txn_detail
-#txn_detail = app.route("/txn.<format>/<publisher>")(txn_detail)
-#txn_detail = app.route("/txn.<format>")(txn_detail)
-#txn_detail = app.route("/txn/<publisher>")(txn_detail)
-#txn_detail = app.route("/txn")(txn_detail)
-
 from reports import engagement 
 engagement = restrict_to("TEST1","TEST2")(engagement)
 engagement = app.route("/pubreps/engage/")(engagement)
@@ -457,10 +448,21 @@ subs = app.route("/subs")(subscriptions)
 from f_and_m_pages import gen_skus_wform 
 gen_skus_wform = app.route("/volusion", methods=['GET', 'POST'] )(gen_skus_wform)
 
+#from reports import txn_detail
+#txn_detail = app.route("/txn.<format>/<publisher>")(txn_detail)
+#txn_detail = app.route("/txn.<format>")(txn_detail)
+#txn_detail = app.route("/txn/<publisher>")(txn_detail)
+#txn_detail = app.route("/txn")(txn_detail)
+
 #from long_running import ui_invoke_long_running
 #ui_invoke_long_running = app.rount('/long_running/')(ui_invoke_long_running)
-from longrun import request_rpt
-request_rpt = app.route("/lr/", methods=['GET','POST'])(request_rpt)
+from indev import lr_request_rpt
+#request_rpt = app.route("/lr/", methods=['GET','POST'])(request_rpt)
+lr_request_rpt = app.route("/lr/", methods=['GET','POST'])(lr_request_rpt)
+from indev import test_args
+#txn_detail = app.route('/lr/txn_detail', methods=['GET','POST'])(txn_detail)
+test_args = app.route('/tests/test-args', methods=['GET','POST'])(test_args)
+
 
 @app.route("/cctrans")
 def cctrans():

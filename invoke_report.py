@@ -2,6 +2,7 @@
 
 #import run_rpt_fromdef
 import txn_detail_def #incl: txn-credits, and msn-txn
+import report_query_framework as f
 
 import datetime
 import sys
@@ -20,7 +21,7 @@ FORMATS_DEFAULT = formatter_default
 
 
 #QUERIES = [txn_detail_def.Q_Txn_Detail(), txn_detail_def.Q_MSN_Detail(), txn_detail_def.Q_TXNPayment_Detail()]
-REPORTS = [txn_detail_def.R_Txn_Detail(), txn_detail_def.R_MSN_Detail(), txn_detail_def.R_TXNPayment_Detail()]
+REPORTS = [f.R_Test_Args(), f.R_Test_Report(), txn_detail_def.R_Txn_Detail(), txn_detail_def.R_MSN_Detail(), txn_detail_def.R_TXNPayment_Detail()]
 PROG = sys.argv[0]
 
 def init_parser(PROG, QUERIES): #uses QUERIES & PROG
@@ -30,16 +31,23 @@ def init_parser(PROG, QUERIES): #uses QUERIES & PROG
 			formatter_class=argparse.ArgumentDefaultsHelpFormatter
 			, prog=PROG
 			, description="A command-line tester for running reports."
-			, epilog="---c.2012 tippr.com---\n\n")
+			, epilog="---c.2012 tippr.com---\n\n"
+			, usage='%(prog)s [options] <report-name> [report-options]')
+
+	def parser_add_arg(*args, **kwargs):
+		print " BASE sp.add_argument("+','.join(args)+','+ \
+			','.join(["%s='%s'"%(k,v) for k,v in kwargs.iteritems()])+ \
+			" )"
+		parser.add_argument(*args, **kwargs)
 
 #	parser.add_argument('report', default=None, help='Report to run')
 	#add_argument('-l','--list', help='List available Reports')
 
-	parser.add_argument('--requestor', dest='requestor', help='Required for restricted reports, provide your email address')
+	parser_add_arg('--requestor', dest='requestor', help='Required for restricted reports, provide your email address')
 
-	parser.add_argument('--sql-only', dest='sqlonly', action='store_true', default=False, help='Generate the sql only')
+	parser_add_arg('--sql-only', dest='sqlonly', action='store_true', default=False, help='Generate the sql only')
 
-	parser.add_argument('--limit', dest='limit', default=100, type=int,  help='Limit the query to ## rows only -- NOTE:defaults always to 100!! so clear it in production!')
+	parser_add_arg('--limit', dest='limit', default=100, type=int,  help='Limit the query to ## rows only -- NOTE:defaults always to 100!! so clear it in production!')
 
 	sub_mountpoint=parser.add_subparsers(
 		title='Available Reports', 
@@ -51,21 +59,22 @@ def init_parser(PROG, QUERIES): #uses QUERIES & PROG
 	#for q in QUERIES:
 	#	q.subparser_add(sub_mountpoint)
 
-	parser.add_argument('-f','--format', dest='format', default=FORMATS_DEFAULT,
+	parser_add_arg('-f','--format', dest='format', default=FORMATS_DEFAULT,
 		choices=(FORMATS_AVAIL), help='Pick the layout format. If no format will be in raw.')
 
-	parser.add_argument('-out', '--output-to', dest='storage',default='STDOUT', 
-		choices=('S3','LOCAL','STDOUT','EMAIL-ATTACH','EMAIL-EMBED'),
-		help='Pick the output sink. ')
 	
 #Notification:
 	#TODO: below: make handle comma-sep list:
-	parser.add_argument('-to', '--audience', nargs='+', dest='audience', default=[], metavar='email-list',
+	parser_add_arg('-to', '--audience', nargs='+', dest='audience', default=[], metavar='email-list',
 		help='Set of people allowed access to this report.  Used as email-list for email delivery (-o option).  Currently _only_ used to email the results; but _future_ will restrict access.')
-	parser.add_argument('-n','--notify', nargs='+', dest='notify', default=[], metavar='email-list',
+	parser_add_arg('-n','--notify', nargs='+', dest='notify', default=[], metavar='email-list',
 		help='Send an email notification to this email addr/list, after the report runs.  Seperate multiple emails by a space.  ')
-#	parser.add_argument('-cs','--custom', dest='subject', default=None,
+#	parser_add_arg('-cs','--custom', dest='subject', default=None,
 #		help='Custom email subject line')
+
+	parser_add_arg('-out', '--output-to', dest='storage',default='STDOUT', 
+		choices=('S3','LOCAL','STDOUT','EMAIL-ATTACH','EMAIL-EMBED'),
+		help='Pick the output sink. ')
 
 	return parser
 
@@ -79,12 +88,12 @@ def build_qualified_query(report_obj, args_obj):
 
 	query_obj = report_obj.require_query()
 
-	qualifier_set = query_obj.parser_pull_qualifiers(args_obj)
+	query_obj.parser_pull_qualifiers(args_obj)
 
 	if args_obj.limit:
 		query_obj.limit = getattr(args_obj,'limit')
 
-	query_obj.qualify(**qualifier_set)
+	query_obj.qualify()
 
 	return query_obj
 
@@ -136,6 +145,9 @@ def main():
 									#Build Query:		
 	query_obj = build_qualified_query(report_obj, args_obj); 
 	#at this point the query_obj is fully qualified successfully, and ready for throwing at the db.
+
+	print query_obj.debug_qualifiers()
+	return 
 
 	#args = vars(args_obj)
 	if args_obj.sqlonly:
