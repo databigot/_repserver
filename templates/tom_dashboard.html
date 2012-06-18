@@ -1,0 +1,155 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>
+      TOM Dashboard Report
+    </title>
+    <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.17/themes/base/jquery-ui.css" type="text/css" media="all">
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js'></script>
+    <script src='https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js'></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <style type="text/css">
+    body, html {
+        font-family: arial;
+        font-size: 10pt;
+    }
+
+    h1 {
+	font-family: arial;
+        font-size:24pt;
+        margin-bottom:0pt;
+    }
+
+    h2 {
+       font-family: arial;
+       font-size: 16pt;
+       margin-top:8pt;
+       margin-bottom:10pt;
+    }
+    table {
+       border:2px solid black;
+       border-collapse:collapse;
+    }
+    th {
+       background-color:#228888;
+       padding:5px;
+       color:white;
+       font-weight:bold;
+    }
+    td {
+       border:1px solid black;
+    }
+    div.section-content {
+       padding:10px;
+    }
+    h3.section-head {
+       padding:10px;
+       background-color:#222288;
+       color:white;
+    }
+    div.section-main {
+       border:2px solid #222288;
+       width:400px;
+    }
+    div.sub-section {
+       padding:10px;
+       border:1px grey solid;
+       margin:3px;
+       width:350px;
+    }
+
+    </style>
+
+  </head>
+
+  <body>
+
+
+
+<div class="demo" style='background-color:#CCCCCC;padding:30px'>
+
+<div class="ui-widget">
+
+</div><!-- End demo -->
+</div>
+<h1>Navigation</h1>
+<div style='font-size:18px'>
+<a href='#bestselling'>Bestselling Offers</a><br/>
+<a href='#rt_organizations'>Realtime Organizational Stats</a><br/>
+<a href='#rt_offer_stats'>Realtime Offer & Promotion Stats</a><br/>
+<a href='#weekly_publisher_activity'>Weekly Publisher Trends</a><br/>
+<a href='#weekly_agency_activity'>Weekly Agency Trends</a><br/>
+<br/>
+<br/>
+</div>
+    <a name='rt_organizations'/>
+    <div id='realtime_stats' style='background-color:#DDDDDD;border:1px solid red;min-height:500px;padding:10px'>
+    <h2>Realtime Organizational Activity Snapshot</h2>
+    <div id='active_agents' style='background-color:white;border:1px solid black; float:left;width:400px;padding:10px'>
+    <h3>Active Agents<br/>agencies with at least one live offer approved in Marketplace</h3>
+    <table>
+    <th>Agency</th><th>Live Offer Count</th>
+    {% for agency in active_agencies %}
+        <tr><td>{{agency.name}}</td><td>{{agency.count}}</td></tr>
+    {% endfor %}
+    </table>
+    </div>
+    <a name='rt_offer_stats'/>
+    <div id='active_publishers' style='background-color:white;border:1px solid black; float:left;margin-left:20px;width:400px;padding:10px'> 
+    <h3 style='display:block;background-color:white'>Active Publishers<br/>publishers with at least one approved promotion active in Marketplace</h3>
+    <table>
+    <th>Publisher</th><th>Promotion Count</th>
+    {% for pub in active_publishers %}
+	<tr><td>{{pub.name}}</td><td>{{pub.count}}</td></tr>   	 
+    {% endfor %}
+    </table> 
+    </div>
+    </div>
+    <hr style='clear:both'/>
+    <div id='realtime_inventory_stats'>
+    <div id='active_offer_stats' style='background-color:white;border:1px solid black; float:left;width:400px;padding:10px'>
+    <h3>Active Offer Stats</h3>
+    Total Offers Active: {{ live_offer_stats[0].offers }}<br/>
+    Total Offer Inventory Active: {{ live_offer_stats[0].vouchers }}<br/>
+    Total Offer Inventory Value Active: ${{ live_offer_stats[0].value }}<br/>
+    </div>
+    <div id='active_promotion_stats' style='background-color:white;border:1px solid black; float:left;width:400px;padding:10px'>
+    <h3>Active Promotion Stats</h3>
+    Total Promotions Active: {{ live_promo_stats[0].promotions }}<br/>
+    Total Inventory Active: {{ live_promo_stats[0].vouchers }}<br/>
+    Total Inventory Value Active: ${{ live_promo_stats[0].value }}<br/>
+    </div>
+    </div>
+    <hr style='clear:both'/>
+    <a name='weekly_publisher_activity'/>
+    <h3>Weekly Publisher-Side Activity</h3>
+    <table>
+    <th>Promotion Start Week</th><th>Active Publishers</th><th>Closed Promotions</th><th>Assigned Vouchers</th><th>Assigned Voucher Value</th><th>Week over Week Change</th>
+    {% for weekd in publisher_activity_stats %}
+        	
+        <tr><td>{{weekd.promotion_start_week}}</td><td>{{weekd.active_publishers}}</td><td>{{weekd.closed_promotions}}</td><td>{{weekd.assigned_vouchers}}</td><td>${{weekd.assigned_voucher_value}}</td><td>{{ '{:.0f}'.format(weekd.wow) }}%</td></tr>
+    {% endfor %}
+    </table>
+    
+    <a name='weekly_agency_activity'/>
+    <h3>Weekly Agency-Side Activity</h3>
+    <table>
+    <th>Offer Available Start Week</th><th>Active Agencies</th><th>Approved Offers</th><th>Total Vouchers Available</th><th>Total Potential Voucher Value</th><th>Week over Week Change</th>
+    {% for weekd in agency_activity_stats %}
+
+        <tr><td>{{weekd.offer_start_week}}</td><td>{{weekd.active_agencies}}</td><td>{{weekd.approved_offers}}</td><td>{{weekd.total_vouchers_available}}</td><td>${{weekd.total_voucher_value}}</td><td>{{ '{:.0f}'.format(weekd.wow) }}%</td></tr>
+    {% endfor %}
+    </table>
+
+    <a name='bestselling'/>
+    <h3>Best Selling Deals (Quantity)</h3>
+    <table>
+    <th>Product</th><th>Total Quantity</th><th>Quantity Left</th><th>Sold</th>
+    {% for item in bestsellers %}
+	<tr><td>{{item.title}}</td><td>{{item.maximum_quantity}}</td><td>{{item.remaining_quantity}}</td><td>{{item.sold}}</td></tr>
+    {% endfor %}
+    </table>
+
+  </body>
+</html>

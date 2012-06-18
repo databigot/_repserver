@@ -1035,6 +1035,123 @@ def tom_breakdown(offer_id='1'):
 
         return render_template("tom_breakdown.html", **metrics);
 
+def tom_dashboard():
+        """
+		Tom Dashboard Report
+	"""
+
+	TITLE = 'TOM DASHBOARD REPORT'
+
+	data = {}
+        
+	sql= """
+		select publisher.name, count(distinct(promotion.id)) 
+			from marketplace_publisher publisher, marketplace_promotion promotion
+			where promotion.start_date < now() and promotion.end_date > now()
+			  and promotion.publisher_id = publisher.id and promotion.status = 'approved'
+			  group by 1 order by 2 desc;
+	     """
+	sql = sql % {}
+	cols, resultset = throw_sql(sql, DB_TOM)
+	ROWS = [dict(zip(cols,row)) for row in resultset]
+	data['active_publishers'] = ROWS 
+
+        sql= """
+                select agency.name, count(distinct(offer.id))
+                        from marketplace_agency agency, marketplace_offer offer
+                        where offer.available_start_date < now() and offer.available_end_date > now()
+                          and offer.agency_id = agency.id and offer.status = 'approved'
+                          group by 1 order by 2 desc;
+             """
+        sql = sql % {}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        data['active_agencies'] = ROWS
+
+        sql= """
+       		select  count(distinct(promotion.id)) "promotions", sum(pi.maximum_quantity) "vouchers", 
+			sum(pi.bid_price * pi.maximum_quantity) "value"
+                        from marketplace_promotion promotion,marketplace_promotioninventory pi
+                        where promotion.start_date < now() and promotion.end_date > now()
+                          and promotion.status = 'approved' and pi.promotion_id = promotion.id
+                          order by 2 desc;
+      
+	"""
+        sql = sql % {}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        data['live_promo_stats'] = ROWS
+
+        sql= """
+                select  count(distinct(offer.id)) "offers", sum(product.maximum_quantity) "vouchers",
+                        sum(product.ask_price * product.maximum_quantity) "value"
+                        from marketplace_offer offer,marketplace_product product
+                        where offer.available_start_date < now() and offer.available_end_date > now()
+                          and offer.status = 'approved' and product.offer_id = offer.id 
+                          order by 2 desc;
+
+        """
+        sql = sql % {}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        data['live_offer_stats'] = ROWS
+
+	sql = """
+	       select date(date_trunc('week',promotion.start_date)) "promotion_start_week",  
+			count(distinct(promotion.publisher_id)) "active_publishers", count(distinct(promotion.id)) "closed_promotions",                        			count(voucher.id) "assigned_vouchers", sum(pi.bid_price) "assigned_voucher_value"
+               from marketplace_voucher voucher, marketplace_promotion promotion, marketplace_promotioninventory pi
+               where voucher.status = 'assigned' and voucher.product_id = pi.id
+                        and (promotion.status = 'closed' or promotion.status = 'finalized')
+                        and pi.promotion_id = promotion.id
+               group by 1 order by 1 ; 
+	"""
+        sql = sql % {}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        data['publisher_activity_stats'] = ROWS
+	prior_week=1
+	for row in data['publisher_activity_stats']:
+		row['wow'] = ((row['assigned_voucher_value'] / prior_week) - 1) * 100
+		
+		prior_week = row['assigned_voucher_value']	
+
+
+	sql= """
+	select 
+	date(date_trunc('week',offer.available_start_date)) "offer_start_week",
+     	count(distinct(offer.agency_id)) "active_agencies",
+	count(distinct(offer.id)) "approved_offers", 
+	sum(product.maximum_quantity) "total_vouchers_available", 
+	sum(product.ask_price * product.maximum_quantity) "total_voucher_value"
+	from 	
+	marketplace_product product, 
+	marketplace_offer offer 
+	where 
+	(offer.status = 'approved')
+        and product.offer_id = offer.id        
+	group by 1 order by 1 ;
+	"""
+
+        sql = sql % {}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        data['agency_activity_stats'] = ROWS
+        prior_week=1
+        for row in data['agency_activity_stats']:
+                row['wow'] = ((row['total_voucher_value'] / prior_week) - 1) * 100
+                prior_week = row['total_voucher_value']
+
+
+        sql= """
+		select product.title, product.maximum_quantity, product.remaining_quantity, count(distinct(v.id)) "sold" from marketplace_offer offer, marketplace_product product, marketplace_promotion promotion, marketplace_promotioninventory pi, marketplace_voucher v where product.offer_id = offer.id and promotion.offer_id = offer.id and pi.product_id = product.id and offer.available_end_date > now() and v.status = 'assigned' and v.product_id = pi.id group by 1,2,3 having (count(distinct(v.id))) > 10 order by 4 desc;
+        """
+        sql = sql % {}
+        cols, resultset = throw_sql(sql, DB_TOM)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        data['bestsellers'] = ROWS
+
+	return render_template("tom_dashboard.html", **data);
+
 
 def offer_metrics(offer_id='1'):
 	"""
@@ -1048,7 +1165,7 @@ def offer_metrics(offer_id='1'):
 	TITLE='OFFER METRICS REPORT'
 	metrics = {} 
 	sql = """
-		select offer.headline "name", offer.id "id", publisher.name, offer.start_date from core_offer offer, core_publisher publisher where offer.status in ('published','closed') and publisher.id = offer.publisher_id order by offer.end_date desc limit 5000;
+		select offer.headline "name", offer.id "id", publisher.name, offer.start_date from core_offer offer, core_publisher publisher where offer.status in ('processing','published','closed') and publisher.id = offer.publisher_id order by offer.end_date desc limit 5000;
 	"""
 	sql = sql % {}
 	cols, resultset = throw_sql(sql, DB_PBT)
@@ -1076,6 +1193,14 @@ def offer_metrics(offer_id='1'):
 	metrics['avg_order_qty'] = ROWS[0]['avg_order_qty']
 	metrics['voucher_count'] = ROWS[0]['voucher_count']
 	metrics['publisher'] = ROWS[0]['publisher']
+
+        sql = """
+        select transaction.status "transaction_status", voucher.status "voucher_status", count(distinct(transaction.id)) "transaction_count", count(distinct(item.id)) "voucher_count", sum(item.amount)::float "item_gross" from core_item item, core_transaction transaction, core_voucher voucher where voucher.item_ptr_id = item.id and item.offer_id = '%(offer_id)s' and item.transaction_id = transaction.id group by 1,2;
+	"""
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql, DB_PBT)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['transaction_status'] = ROWS
 
 	sql = """
 	select payment._polymorphic_identity "ptype", sum(payment.amount)::float "amount" from core_payment payment where payment.transaction_id in (select transaction.id from core_transaction transaction, core_offer offer, core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id) group by 1;

@@ -117,6 +117,19 @@
     <h3>New Buyers (created accounts within 4 hours of purchase): {{new_buyers}} ({{ '{:.2%}'.format(new_buyers/unique_buyers) }} of total)</h3>
     <h3>Avg Order Amount: ${{ '{:.2f}'.format(avg_order_amount) }}</h3>
     <h3>Avg Order Qty: {{ '{:.1f}'.format(avg_order_qty) }} units</h3>
+    <div id='transaction_breakdown' class='section-main' style='width:450px'>
+    <h3 class='section-head'>Current Transaction Statuses</h3>
+    <div class='section-content'>
+    <table >
+    <th>Transaction Status</th><th>Voucher Status</th><th>Transactions</th><th>Vouchers</th><th>Amount</th><th>% of Gross</th>
+
+    {% for pt in transaction_status %}
+        <tr><td>{{pt.transaction_status}}</td><td>{{pt.voucher_status}}</td><td>{{pt.transaction_count}}</td><td>{{pt.voucher_count}}</td><td>${{ '{:.2f}'.format(pt.item_gross) }}</td><td>{{ '{:.2%}'.format(pt.item_gross/gross_sales) }}</tr>
+    {% endfor %}
+    </table>
+
+    </div>
+    </div>
     <div id='payment_breakdown' class='section-main'>
     <h3 class='section-head'>Payment Breakdown</h3>
     <div class='section-content'>

@@ -397,6 +397,9 @@ tom_publisher_promotions = app.route("/tom_publisher_promotions/", methods=['GET
 from reports import tom_breakdown
 tom_breakdown = app.route("/tom_breakdown/", methods=['GET','POST'])(tom_breakdown)
 
+from reports import tom_dashboard
+tom_dashboard = app.route("/tom_dashboard/", methods=['GET','POST'])(tom_dashboard)
+
 
 from reports import credits_granted_by_date
 credits_granted_by_date = app.route("/credits_granted_by_date/<rdate>")(credits_granted_by_date)
