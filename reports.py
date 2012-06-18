@@ -1176,7 +1176,7 @@ def offer_metrics(offer_id='1'):
 	metrics['offer_list'] = offer_list
 	
 	sql = """
-		 select publisher.name "publisher", offer.headline "name", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.account_id)) "unique_buyers", sum(item.amount)::float "gross", avg(transaction.amount)::float "avg_order_amount", count(distinct(item.id)) "voucher_count", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction, core_publisher publisher where item.offer_id = offer.id and offer.publisher_id = publisher.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3,4; 
+		 select publisher.name "publisher", offer.headline "name", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.id)) "orders", count(distinct(transaction.account_id)) "unique_buyers", sum(item.amount)::float "gross", count(distinct(item.id)) "voucher_count", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction, core_publisher publisher where item.offer_id = offer.id and offer.publisher_id = publisher.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3,4; 
 	"""
 	sql = sql % {'offer_id':offer_id}
 	cols, resultset = throw_sql(sql, DB_PBT)
@@ -1189,7 +1189,7 @@ def offer_metrics(offer_id='1'):
 	metrics['name'] = ROWS[0]['name']
 	metrics['unique_buyers'] = ROWS[0]['unique_buyers']
 	metrics['gross_sales'] = ROWS[0]['gross']
-	metrics['avg_order_amount'] = ROWS[0]['avg_order_amount']
+	metrics['avg_order_amount'] = ROWS[0]['gross'] / ROWS[0]['orders']
 	metrics['avg_order_qty'] = ROWS[0]['avg_order_qty']
 	metrics['voucher_count'] = ROWS[0]['voucher_count']
 	metrics['publisher'] = ROWS[0]['publisher']

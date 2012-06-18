@@ -87,7 +87,8 @@ def index():
 	reports = {}
 
         reports['MARKETPLACE REPORTS'] = [
-                {'name': 'TOM voucher sales by site'           ,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
+                {'name': 'TOM Dashboard'                        ,'url': url_for('tom_dashboard')}
+		,{'name': 'TOM voucher sales by site'           ,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
                 ,{'name': 'TOM sales by date'                   ,'url': url_for('tom_sales_by_date')}
                 ,{'name': 'TOM activity by agency'              ,'url': url_for('tom_activity_by_agency',rdate='2012-05-01')}
                 ,{'name': 'TOM activity by publisher'           ,'url': url_for('tom_activity_by_publisher')}
