@@ -28,7 +28,7 @@ import sys
 #	see --help for full usage, 
 #	invoke_query_tester.py [--sql-only] <query-name> {<qualifiers>}	
 
-QUERIES = [txn_detail_def.Q_Txn_Detail(), txn_detail_def.Q_MSN_Detail(), txn_detail_def.Q_TXNPayment_Detail()]
+QUERIES = [txn_detail_def.Q_Test_Query(), txn_detail_def.Q_Txn_Detail(), txn_detail_def.Q_MSN_Detail(), txn_detail_def.Q_TXNPayment_Detail()]
 PROG = sys.argv[0]
 
 def main():

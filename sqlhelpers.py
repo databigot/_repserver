@@ -1,23 +1,26 @@
 import psycopg2
+
 from  settings import *
 
 from pymongo import Connection
 
-def db_connectstring(dbName=None):
-    (user,dbname,host,port) = db_params(dbName)
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODE) 
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY) 
+
+def db_connectstring(db=None):
+    (user,passwd,dbname,host,port) = db_params(db)
     print "Connecting to: dbname='%s' user='%s' host='%s', port='%s'"% ( dbname, user, host,port )
 
     return "dbname='%s' user='%s' host='%s' port='%s'"% (
 	dbname, user, host,port )
 
-def db_params(dbName=None):
-	dbName=dbName or DB_PBT
-	return [dbName[x] for x in 
-		['DATABASE_USER','DATABASE_NAME','DATABASE_HOST','DATABASE_PORT']]
+def db_params(db=None):
+	return [db[x] for x in 
+		['DATABASE_USER','DATABASE_PASS','DATABASE_NAME','DATABASE_HOST','DATABASE_PORT']]
 
-def shared_db(dbName=None):
+def shared_db(db=None):
     try:
-	DB_CONNECT=db_connectstring(dbName)
+	DB_CONNECT=db_connectstring(db)
         conn = psycopg2.connect(DB_CONNECT)
         return conn        
     except Exception as e:
@@ -26,12 +29,16 @@ def shared_db(dbName=None):
 
 g_conn = shared_db()
 
-def throw_sql(sql, dbName=None):
+def throw_sql(sql, db=DB_PBT, params=None):
+    """ run the query, return the column names in array, and the resultset in array of array.
+	cols:[col,...], results:[row:[field,...],...] = throw_sql(query, db)
+    """
+
     try:
-        conn = psycopg2.connect(db_connectstring(dbName));
+        conn = psycopg2.connect(db_connectstring(db));
 #        conn = g_conn
         curr = conn.cursor()
-        curr.execute(sql)
+        curr.execute(sql, params)
         results = curr.fetchall();
         cols = [x.name for x in curr.description]
         return cols, results;
@@ -51,6 +58,21 @@ def mongo_data( query, fields, collection, db='test', host='localhost', port=270
 	print "Database error",e
 	return None
 
+def mongo_connect(db, **kwargs):
+	connectstring= ("%(scheme)s://%(user)s:%(pwd)s@%(host)s:%(port)s/%(db)s" % 
+		dict(zip(('scheme','user','pwd','db','host','port'),['mongodb']+db_params(db))))
+
+	try:
+	    print connectstring
+	    conn = Connection(connectstring, **kwargs)
+	    return conn
+	except Exception as e:
+	    print connectstring
+	    print "I am unable to connect to the Mongo database",e
+	    return None	
+
+
+
 def sql_simple_fetchrow(sql,dbName=None):
     try:
         conn = psycopg2.connect(db_connectstring(dbName));
@@ -65,7 +87,7 @@ def sql_simple_fetchrow(sql,dbName=None):
         print "Database error",e
         return None
 
-def sql_pull_lookup(sql,dbName=None): #for pulling id:value results, e.g. (publisher_id,publisher.title)
+def sql_pull_lookup(sql,dbName=DB_PBT): #for pulling id:value results, e.g. (publisher_id,publisher.title)
 	#assumes unique id, and row result will be of form: [key,value]
     try:
         conn = psycopg2.connect(db_connectstring(dbName));
