@@ -27,7 +27,7 @@ def shared_db(db=None):
         print "I am unable to connect to the db", e
         return None
 
-g_conn = shared_db()
+#g_conn = shared_db()
 
 def throw_sql(sql, db=DB_PBT, params=None):
     """ run the query, return the column names in array, and the resultset in array of array.

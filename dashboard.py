@@ -8,8 +8,8 @@ import sys
 
 import csv
 
+from settings import * #imports general settings, AND settings_local.py machine-local settings. 
 from sqlhelpers import *
-from settings import *
 
 import hashlib
 from pymongo import objectid, ReadPreference
