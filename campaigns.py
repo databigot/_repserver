@@ -1,4 +1,6 @@
 import psycopg2
+from sqlhelpers import db_connectstring
+from settings import *
 from datetime import date, timedelta, datetime
 from hashlib import md5
 from urllib import urlencode
@@ -86,7 +88,7 @@ def get_offers( conn, dt, publisher ):
 
 
 def showcampaigns():
-    conn = psycopg2.connect("dbname='silos' user='django' host='127.0.0.1'");
+    conn = psycopg2.connect(db_connectstring(DB_PBT))
     tznow = datetime.now(tz=pytz.utc)
     today = tznow.astimezone( pytz.timezone("America/Chicago") ).date()
     tomorrow = today+timedelta(days=1)
@@ -99,6 +101,7 @@ def showcampaigns():
         for key in pub["keys"]:
             try:
                 pub["blasts"].update( get_sailthru_blasts( key[0], key[1] ) )
+		print pub['name']
             except Exception as e:
                 print "error getting blasts for %s with (%s, %s): %s" % (pub["name"], key[0], key[1], e)
 
