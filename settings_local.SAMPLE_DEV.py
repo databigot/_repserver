@@ -39,10 +39,10 @@ S3_REPORT_BUCKET = 'reportserver.TEST.reports'
 # note: since this is a read-only application, we have been known to point to live production dbs, even in dev, to get a good sample dataset.  this is ok.  however, if it becomes desirable, these settings could be changed to point to development databases, instead.
 DB_PBT = {
 	    'DATABASE_HOST': 'slave.db.production.kashless.com',
-	    'DATABASE_NAME': 'silos',
+	    'DATABASE_NAME': 'pbt',
 	    'DATABASE_PASS': '',
 	    'DATABASE_PORT': '5432',
-	    'DATABASE_USER': 'django',
+	    'DATABASE_USER': 'pbt',
 	    }
 DB_TOM = {
 	    'DATABASE_HOST': 'slave.db.production.kashless.com',
