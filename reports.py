@@ -110,49 +110,75 @@ select distinct(referral.transaction_id) "transaction_id", channel.name "channel
       """
       cols, resultset = throw_sql(sql % {'month_start':month_start,'publisher':publisher},DB_PBT    ); ##bind in the input p
       ROWS = [dict(zip(cols,row)) for row in resultset]
-
       for row in ROWS:
-          test = 1
-	  row['hasoffers_status'] = 'none'
-	  row['hasoffers_commission'] = '-1.00'
-          row['hasoffers_net_revenue'] = '-1.00'
-	  # MAKE SURE THERE IS A PROVIDER ID FOR THE TRANSACTION AND THAT IT IS NOT NULL/EMPTY
+	row['hasoffers_status'] = 'none'
+        row['hasoffers_commission'] = '-1.00'
+        row['hasoffers_net_revenue'] = '-1.00'
 
-          url = "https://api.hasoffers.com/Api"
-          url = url + "?Format=json"
-          url = url + "&Target=Report"
-          url = url + "&Method=getConversions"
-          url = url + "&Service=HasOffers"
-          url = url + "&Version=2"
-          url = url + "&NetworkId=tippr"
-          url = url + "&NetworkToken=NETfolm5KpltOeugIlw7JvCjX6Rlq9"
-          url = url + "&fields[]=Stat.revenue"
-          url = url + "&fields[]=Affiliate.company"
-          url = url + "&fields[]=Advertiser.company"
-          url = url + "&fields[]=Stat.source"
-          url = url + "&fields[]=Stat.payout"
-	  url = url + "&fields[]=Stat.refer"
-          url = url + "&fields[]=Stat.datetime"
-          url = url + "&fields[]=Stat.ad_id"
-	  url = url + "&fields[]=Stat.status"
-          url = url + "&filters[Stat.ad_id][conditional]=EQUAL_TO"
-          url = url + "&filters[Stat.ad_id][values]=" + str(row['hasoffers_transaction_id'])
+      ad_ids = '' 
+      count = 0
+      ORIGINAL = list(ROWS)
+      while ROWS:
+        subset = []
+	ad_ids = ''
+	#print "Length of ROWS: " + str(len(ROWS)) + " - Length of ORIGINAL: " + str(len(ORIGINAL))
+        for i in range(40):
+	  if len(ROWS) > 0:
+	    subset.append(ROWS.pop())
+      
+	for row in subset:
+	  ad_ids = ad_ids + '&filters[Stat.ad_id][values][' + str(count) + ']=' + str(row['hasoffers_transaction_id'])
+	  count = count + 1
+        # MAKE SURE THERE IS A PROVIDER ID FOR THE TRANSACTION AND THAT IT IS NOT NULL/EMPTY
 
-          f = urllib.urlopen(url)
-          json_response  = f.read()
-          try:
-                decoded_json = json_to_data(json_response)
-          except:
-                print "Cannot decode the json object"
-	  try: 
-	     row['hasoffers_commission']=str(decoded_json['response']['data']['data'][0]['Stat']['payout'])
-	     row['hasoffers_status']=str(decoded_json['response']['data']['data'][0]['Stat']['status'])
+        url = "https://api.hasoffers.com/Api"
+        url = url + "?Format=json"
+        url = url + "&Target=Report"
+        url = url + "&Method=getConversions"
+        url = url + "&Service=HasOffers"
+        url = url + "&Version=2"
+        url = url + "&NetworkId=tippr"
+        url = url + "&NetworkToken=NETfolm5KpltOeugIlw7JvCjX6Rlq9"
+        url = url + "&fields[]=Stat.revenue"
+        url = url + "&fields[]=Affiliate.company"
+        url = url + "&fields[]=Advertiser.company"
+        url = url + "&fields[]=Stat.source"
+        url = url + "&fields[]=Stat.payout"
+        url = url + "&fields[]=Stat.refer"
+        url = url + "&fields[]=Stat.datetime"
+        url = url + "&fields[]=Stat.ad_id"
+        url = url + "&fields[]=Stat.status"
+        url = url + "&filters[Stat.ad_id][conditional]=EQUAL_TO"
+        url = url + ad_ids
 
-	     row['hasoffers_net_revenue'] = str(decoded_json['response']['data']['data'][0]['Stat']['revenue'])
-	  except:
-		print "Fatal error received querying for " + str(row['hasoffers_transaction_id']) + " in hasoffers"
+        f = urllib.urlopen(url)
+        #print url
+        json_response  = f.read()
+        #print "JSON RESPONSE: " + str(json_to_data(json_response))
+	decoded_json = ''
+        try:
+          decoded_json = json_to_data(json_response)
+        except:
+          print "Cannot decode the json object"
+        try:
+	  #print "Checking for row: " + str(row['hasoffers_transaction_id']) + " in ORIGINAL: " + str(ORIGINAL)
+	  for resprow in decoded_json['response']['data']['data']:
+		#print "Looking up resprows: " + str(resprow)
+		# being lazy, need to make rows a dictionary instead of an array
+		for row in ORIGINAL:
+		   #print "Checking " + str(row['hasoffers_transaction_id']) + " against " + str(resprow['Stat']['ad_id'])
+		   if row['hasoffers_transaction_id'] == resprow['Stat']['ad_id']:
+		      row['hasoffers_status'] = 'none'
+	              row['hasoffers_commission'] = '-1.00'
+                      row['hasoffers_net_revenue'] = '-1.00'
+                      row['hasoffers_commission']=str(resprow['Stat']['payout'])
+                      row['hasoffers_status']=str(resprow['Stat']['status'])
+                      row['hasoffers_net_revenue'] = str(resprow['Stat']['revenue'])
+		      #print "   Found a match on " + str(row['hasoffers_transaction_id'])
+        except:
+          print "Fatal error received querying for " + str(row['hasoffers_transaction_id']) + " in hasoffers"
 
-	  print decoded_json
+        print decoded_json
 
 
       COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
@@ -172,40 +198,6 @@ select distinct(referral.transaction_id) "transaction_id", channel.name "channel
       ]
 
 
-      if 0:
-   	for transaction_id in transactions:
-           # MAKE SURE THERE IS A PROVIDER ID FOR THE TRANSACTION AND THAT IT IS NOT NULL/EMPTY
-
-	   url = "https://api.hasoffers.com/Api"
-	   url = url + "?Format=json"
-	   url = url + "&Target=Report"
-	   url = url + "&Method=getConversions"
-	   url = url + "&Service=HasOffers"
-	   url = url + "&Version=2"
-	   url = url + "&NetworkId=tippr"
-	   url = url + "&NetworkToken=NETfolm5KpltOeugIlw7JvCjX6Rlq9"
-	   url = url + "&fields[]=Stat.revenue"
-	   url = url + "&fields[]=Affiliate.company"
-	   url = url + "&fields[]=Advertiser.company"
-	   url = url + "&fields[]=Stat.source"
-	   url = url + "&fields[]=Stat.affiliate_info1"
-	   url = url + "&fields[]=Stat.affiliate_info2"
-	   url = url + "&fields[]=Stat.affiliate_info3"
-	   url = url + "&fields[]=Stat.affiliate_info4"
-	   url = url + "&fields[]=Stat.affiliate_info5"
-	   url = url + "&fields[]=Stat.refer"
-	   url = url + "&fields[]=Stat.datetime"
-	   url = url + "&fields[]=Stat.ad_id"
-	   url = url + "&filters[Stat.ad_id][conditional]=EQUAL_TO"
-	   url = url + "&filters[Stat.ad_id][values]=" + str(transaction_id)
-
-
-	   f = urllib.urlopen(url)
-	   json_response  = f.read()
-	   try:
-		decoded_json = json.loads(json_response)
-	   except:
-		print "Cannot decode the json object"
       context = {};
       TITLE='HASOFFERS AFFILIATE TRANSACTIONS BY PUBLISHER & MONTH'; SUBTITLE= 'MONTH: %s PUBLISHER: %s [change in URL]'%(month_start, publisher);
       searchform = """
@@ -219,9 +211,9 @@ select distinct(referral.transaction_id) "transaction_id", channel.name "channel
       format = request.args.get('format','grid');
       if format == 'csv':
 
-        return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='hasoffers_detail-v1'));
+        return csv_out_simple(ORIGINAL,COLS,dict(REPORTSLUG='hasoffers_detail-v1'));
       else: #assume format == 'grid':
-        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+        return render_template("report2.html", COLS=COLS, ROWS=ORIGINAL, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
 
       # WE ALLOW THE REFERRAL TIMESTAMP AND TRANSACTION TIMESTAMP TO DIFFER BY UP TO ONE DAY
