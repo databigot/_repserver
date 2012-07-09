@@ -1,7 +1,7 @@
 from sqlhelpers import *
 from flask import Flask, url_for, render_template, render_template_string, g, session, request, redirect, abort
 
-from utils import csv_out_simple, json_response, data_to_json, gjson_response, data_to_gjson
+from utils import csv_out_simple, json_response, data_to_json, gjson_response, data_to_gjson, json_to_data
 
 from utils import cache_report_request, cache_save_dataset, cache_fetch_dataset
 import datetime 
@@ -138,11 +138,10 @@ select distinct(referral.transaction_id) "transaction_id", channel.name "channel
           url = url + "&filters[Stat.ad_id][conditional]=EQUAL_TO"
           url = url + "&filters[Stat.ad_id][values]=" + str(row['hasoffers_transaction_id'])
 
-
           f = urllib.urlopen(url)
           json_response  = f.read()
           try:
-                decoded_json = json.loads(json_response)
+                decoded_json = json_to_data(json_response)
           except:
                 print "Cannot decode the json object"
 	  try: 
