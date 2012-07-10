@@ -111,6 +111,7 @@
 	<h2>Publisher: {{publisher}}</h2>
 	<h3>{{start_date}} through {{end_date}}</h3>
     </center>
+    <h3>Offer Source: {{ upstream_source }}</h3>
     <h3>Gross: ${{ '{:.2f}'.format(gross_sales) }}</h3>
     <h3>Vouchers Sold: {{ voucher_count }}</h3>
     <h3>Unique Buyers: {{ unique_buyers }}</h3>
@@ -130,6 +131,23 @@
 
     </div>
     </div>
+    
+    {% if upstream_source == 'tom' %}
+    <div id='tom_voucher_breakdown' class='section-main' style='width:450px'>
+    <h3 class='section-head'>TOM Voucher Statuses</h3>
+    <div class='section-content'>
+    <table >
+    <th>Voucher Status</th><th>Voucher Count</th>
+
+    {% for pt in tom_voucher_status %}
+        <tr><td>{{pt.voucher_status}}</td><td>{{pt.voucher_count}}</td></tr>
+    {% endfor %}
+    </table>
+
+    </div>
+    </div>
+    {% endif %}
+
     <div id='payment_breakdown' class='section-main'>
     <h3 class='section-head'>Payment Breakdown</h3>
     <div class='section-content'>

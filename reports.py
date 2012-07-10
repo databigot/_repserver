@@ -1167,7 +1167,7 @@ def offer_metrics(offer_id='1'):
 	metrics['offer_list'] = offer_list
 	
 	sql = """
-		 select publisher.name "publisher", offer.headline "name", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.id)) "orders", count(distinct(transaction.account_id)) "unique_buyers", sum(item.amount)::float "gross", count(distinct(item.id)) "voucher_count", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction, core_publisher publisher where item.offer_id = offer.id and offer.publisher_id = publisher.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3,4; 
+		 select publisher.name "publisher", offer.headline "name", offer.upstream_source "upstream_source", offer.upstream_id "upstream_id", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.id)) "orders", count(distinct(transaction.account_id)) "unique_buyers", sum(item.amount)::float "gross", count(distinct(item.id)) "voucher_count", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction, core_publisher publisher where item.offer_id = offer.id and offer.publisher_id = publisher.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3,4,5,6; 
 	"""
 	sql = sql % {'offer_id':offer_id}
 	cols, resultset = throw_sql(sql, DB_PBT)
@@ -1184,14 +1184,33 @@ def offer_metrics(offer_id='1'):
 	metrics['avg_order_qty'] = ROWS[0]['avg_order_qty']
 	metrics['voucher_count'] = ROWS[0]['voucher_count']
 	metrics['publisher'] = ROWS[0]['publisher']
+	metrics['upstream_source'] = ROWS[0]['upstream_source']
+	if metrics['upstream_source'] == '':
+		metrics['upstream_source'] = 'PBT'
+
+	metrics['upstream_id'] = ROWS[0]['upstream_id']
 
         sql = """
         select transaction.status "transaction_status", voucher.status "voucher_status", count(distinct(transaction.id)) "transaction_count", count(distinct(item.id)) "voucher_count", sum(item.amount)::float "item_gross" from core_item item, core_transaction transaction, core_voucher voucher where voucher.item_ptr_id = item.id and item.offer_id = '%(offer_id)s' and item.transaction_id = transaction.id group by 1,2;
 	"""
+
         sql = sql % {'offer_id':offer_id}
         cols, resultset = throw_sql(sql, DB_PBT)
         ROWS = [dict(zip(cols,row)) for row in resultset]
         metrics['transaction_status'] = ROWS
+	
+	
+	if metrics['upstream_source'] == 'tom' and metrics['upstream_id']:
+
+          sql = """
+          select voucher.status "voucher_status",  count(distinct(voucher.id)) "voucher_count" from marketplace_voucher voucher, marketplace_promotioninventory pi where voucher.product_id = pi.id and pi.promotion_id = '%(upstream_id)s' group by 1;
+          """
+
+          sql = sql % {'upstream_id':metrics['upstream_id']}
+          cols, resultset = throw_sql(sql, DB_TOM)
+          ROWS = [dict(zip(cols,row)) for row in resultset]
+          metrics['tom_voucher_status'] = ROWS
+
 
 	sql = """
 	select payment._polymorphic_identity "ptype", sum(payment.amount)::float "amount" from core_payment payment where payment.transaction_id in (select transaction.id from core_transaction transaction, core_offer offer, core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id) group by 1;
