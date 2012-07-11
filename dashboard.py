@@ -117,6 +117,7 @@ def index():
 
         reports['OTHER REPORTS'] = [
                 {'name': 'Hasoffers transactions by publisher/date', 'url': url_for('hasoffers_transaction_detail',month_start='2012-03-01',publisher='frugaling')}
+		,{'name': 'Voucher debug tool between TOM and PBT', 'url': url_for('tom_pbt_voucher_sync',offer_id=1)}
         	]
 
 
@@ -334,6 +335,9 @@ showcampaigns = app.route("/campaigns/")(showcampaigns)
 from reports import account_detail
 account_detail = app.route("/account_detail/<id>")(account_detail)
 account_detail = app.route("/account_detail/", methods=['GET','POST'])(account_detail)
+
+from reports import tom_pbt_voucher_sync
+tom_pbt_voucher_sync = app.route("/tom_pbt_voucher_sync/<offer_id>")(tom_pbt_voucher_sync)
 
 from reports import cumulative_tom_sales_by_site
 cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/<status>")(cumulative_tom_sales_by_site)

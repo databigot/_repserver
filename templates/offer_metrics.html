@@ -111,27 +111,31 @@
 	<h2>Publisher: {{publisher}}</h2>
 	<h3>{{start_date}} through {{end_date}}</h3>
     </center>
-    <h3>Offer Source: {{ upstream_source }}</h3>
-    <h3>Gross: ${{ '{:.2f}'.format(gross_sales) }}</h3>
-    <h3>Vouchers Sold: {{ voucher_count }}</h3>
-    <h3>Unique Buyers: {{ unique_buyers }}</h3>
-    <h3>New Buyers (created accounts within 4 hours of purchase): {{new_buyers}} ({{ '{:.2%}'.format(new_buyers/unique_buyers) }} of total)</h3>
-    <h3>Avg Order Amount: ${{ '{:.2f}'.format(avg_order_amount) }}</h3>
-    <h3>Avg Order Qty: {{ '{:.1f}'.format(avg_order_qty) }} units</h3>
-    <div id='transaction_breakdown' class='section-main' style='width:450px'>
-    <h3 class='section-head'>Current Transaction Statuses</h3>
+    <table style='font-size:20px'>
+    <tr><td>Offer Source: {{ upstream_source }}</td></tr>
+    <tr><td>Gross Originally Sold: ${{ '{:.2f}'.format(gross_sales) }}</td></tr>
+    <tr><td style='background-color:orange'>Total Cancelled/Refunded: ${{ '{:.2f}'.format(voucher_gross_refunded) }} ({{ '{:.2%}'.format(voucher_gross_refunded/gross_sales) }} of total)</td></tr>
+    <tr><td>Vouchers Originally Sold: {{ voucher_count }}</td></tr>
+    <tr><td>Vouchers Cancelled/Refunded: {{ voucher_count_refunded }}</td></tr>
+    <tr><td>Unique Buyers: {{ unique_buyers }}</td></tr>
+    <tr><td>New Buyers (created accounts within 4 hours of purchase): {{new_buyers}} ({{ '{:.2%}'.format(new_buyers/unique_buyers) }} of total)</td></tr>
+    <tr><td>Avg Order Amount: ${{ '{:.2f}'.format(avg_order_amount) }}</td></tr>
+    <tr><td>Avg Order Qty: {{ '{:.1f}'.format(avg_order_qty) }} units</td></tr>
+    </table>
+    <div id='pbt_voucher_breakdown' class='section-main' style='width:450px'>
+    <h3 class='section-head'>PBT Voucher Statuses</h3>
     <div class='section-content'>
     <table >
-    <th>Transaction Status</th><th>Voucher Status</th><th>Transactions</th><th>Vouchers</th><th>Amount</th><th>% of Gross</th>
+    <th>Voucher Status</th><th>Voucher Count</th><th>Voucher Cost</th>
 
-    {% for pt in transaction_status %}
-        <tr><td>{{pt.transaction_status}}</td><td>{{pt.voucher_status}}</td><td>{{pt.transaction_count}}</td><td>{{pt.voucher_count}}</td><td>${{ '{:.2f}'.format(pt.item_gross) }}</td><td>{{ '{:.2%}'.format(pt.item_gross/gross_sales) }}</tr>
+    {% for pt in pbt_voucher_status %}
+        <tr><td>{{pt.voucher_status}}</td><td>{{pt.voucher_count}}</td><td>${{ '{:.2f}'.format(pt.item_gross) }}</td></tr>
     {% endfor %}
     </table>
 
     </div>
     </div>
-    
+ 
     {% if upstream_source == 'tom' %}
     <div id='tom_voucher_breakdown' class='section-main' style='width:450px'>
     <h3 class='section-head'>TOM Voucher Statuses</h3>
@@ -154,10 +158,10 @@
     <div id='payment_type_chart' ></div>
  
     <table >
-    <th>Type</th><th>Amount</th><th>Percent</th>
+    <th>Charge Type</th><th>Type</th><th>Amount</th><th>Percent</th>
     
-    {% for pt in payments.iterkeys() %} 
-	<tr><td>{{pt}}</td><td>{{payments[pt]}}</td><td>{{ '{:.2%}'.format(payments[pt]/gross_sales) }}</td></tr>
+    {% for pt in payments %} 
+	<tr><td>{{ pt.charge_type }}</td><td>{{ pt.ptype }}</td><td>{{ pt.amount }}</td><td>{{ '{:.2%}'.format(pt.amount/gross_sales) }}</td></tr>
     {% endfor %}
     </table>
     <script type="text/javascript">
@@ -168,8 +172,10 @@
         data.addColumn('string', 'Type');
         data.addColumn('number', 'Amount');
         data.addRows([
-          {% for pt in payments.iterkeys() %}
-	    ['{{pt}}',    {{payments[pt]}}],
+          {% for pt in payments %}
+	    {% if pt.charge_type == 'debit ' %}
+		['{{ pt.ptype }}',    {{ pt.amount }}],
+	    {% endif %}
 	  {% endfor %}
         ]);
 
@@ -239,6 +245,20 @@
 	<tr><td>{{row['name']}}</td><td>{{row['count']}}</td></tr>
     {% endfor %}
     </table>
+    <div id='transaction_breakdown' class='section-main' style='width:450px'>
+    <h3 class='section-head'>Current Transaction Statuses</h3>
+    <div class='section-content'>
+<b>DO NOT RELY ON THIS FOR FINANCIAL DATA, PARTIALLY REFUNDED TRANSACTIONS STILL REFLECT AS 'COMPLETED' WHICH IS MISLEADING, USE THE VOUCHER LIST UP TOP "CURRENT VOUCHER STATUSES" FOR EXPECTED MERCHANT PAYOUTS BASED ON THE TIME THE REPORT WAS RUN</b>
+    <table >
+    <th>Transaction Status</th><th>Transactions</th><th>Gross Amount</th><th>% of Gross</th>
+
+    {% for pt in transaction_status %}
+        <tr><td>{{pt.transaction_status}}</td><td>{{pt.transaction_count}}</td><td>${{ '{:.2f}'.format(pt.item_gross) }}</td><td>{{ '{:.2%}'.format(pt.item_gross/gross_sales) }}</tr>
+    {% endfor %}
+    </table>
+
+    </div>
+    </div>
 
 {% endif %}
   </body>
