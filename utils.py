@@ -163,6 +163,9 @@ def data_to_json(ROWS, COLS, CONTEXT):
 		}
 	return json.dumps(data), JSON_MIME, JSON_CTYPE
 
+def json_to_data(data):
+	return json.loads(data)
+
 def json_response(data, CONTEXT):	
 	#response = Response(status=200, mimetype='text/x-json', content_type='text/x-json')
 	response = Response(status=200, mimetype=JSON_MIME, content_type=JSON_CTYPE)

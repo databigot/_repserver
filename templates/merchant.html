@@ -55,7 +55,7 @@
       // add rows
       {% for r in rows %}
       dataTable.addRow( [ "{{ r.offerid }}", 
-	{% if r.end_date %} Date("{{ r.end_date.strftime( '%m/%d/%y' ) }}"){% endif %},
+	{% if r.end_date %} "{{ r.end_date.strftime( '%Y-%m-%d' ) }}"{% endif %},
 	"{{ r.advertiser | safe }}", "{{ r.headline | replace('"','') | safe }}", "{{ r.city | replace('"','') | safe }}", "{{ r.channame | safe }}", {{ r.voucher_count }}, {{ r.voucher_sum  }}, {{ r.completed  | int}}, {{ r.completed_amount | float }},{{ r.voided | int }}, {{ r.voided_amount | float }}, {{ r.aborted | int }}, {{ r.aborted_amount | float }},{{ r.failed | int }}, {{ r.failed_amount | float }} ] );
       {% endfor %}
 

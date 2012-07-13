@@ -1,7 +1,7 @@
 from sqlhelpers import *
 from flask import Flask, url_for, render_template, render_template_string, g, session, request, redirect, abort
 
-from utils import csv_out_simple, json_response, data_to_json, gjson_response, data_to_gjson
+from utils import csv_out_simple, json_response, data_to_json, gjson_response, data_to_gjson, json_to_data
 
 from utils import cache_report_request, cache_save_dataset, cache_fetch_dataset
 import datetime 
@@ -65,6 +65,69 @@ def pbt_channel_sales_by_offer_type_detail(channel = 'tippr-honolulu'):
 
     else: #assume format == 'grid':
         return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+def tom_pbt_voucher_sync(offer_id='1'):
+    """
+            Show TOM + PBT Voucher sync lists 
+    """
+
+    offer_in = request.args.get('offer_id')
+    if offer_in:
+       offer_id = offer_in
+
+
+    sql = """
+    select offer.upstream_id "pbt_offer_upstream_id", voucher.upstream_voucher_code "pbt_voucher_upstream_voucher_code", voucher.code "pbt_voucher_code", voucher.redemption_code "pbt_redemption_code", voucher.status "pbt_voucher_status" from core_voucher voucher, core_product product, core_offer offer where voucher.product_id = product.id and product.offer_id = offer.id and offer.id = '%(offer_id)s';
+    """
+    sql = sql % {'offer_id':offer_id}
+    cols, resultset = throw_sql(sql, DB_PBT)
+
+    PBT_ROWS = [dict(zip(cols,row)) for row in resultset]
+    metrics = {}
+
+
+
+    sql = """
+    select voucher.id "tom_voucher_id", voucher.voucher_code "tom_voucher_code", voucher.redemption_code "tom_redemption_code", voucher.status "tom_voucher_status" from marketplace_voucher voucher, marketplace_promotioninventory pi where pi.promotion_id = '%(promo_id)s' and voucher.product_id = pi.id;
+    """
+    if len(PBT_ROWS) > 0 :
+	sql = sql % {'promo_id': PBT_ROWS[0]['pbt_offer_upstream_id'] }
+    else:
+	sql = sql % {'promo_id': 'none'}	
+    cols, resultset = throw_sql(sql,DB_TOM    ); ##bind in the input params; and run it.
+    TOM_ROWS = [dict(zip(cols,row)) for row in resultset]
+    COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
+        {'k':'pbt_offer_id'	      ,'l': 'PBT Offer ID'             ,'u': None                   ,'w': '200px'}
+        ,{'k':'tom_promotion_id'      ,'l': 'TOM Promotion ID'         ,'u': None                   ,'w': '200px'}
+        ,{'k':'tom_voucher_id'        ,'l': 'TOM Voucher ID'           ,'u': None                   ,'w': '100px'}
+        ,{'k':'pbt_voucher_code'      ,'l': 'PBT Voucher Code'         ,'u': None                   ,'w': '100px'}
+        ,{'k':'pbt_redemption_code'   ,'l': 'PBT Redemption Code'      ,'u': None                   ,'w': '100px'}
+	,{'k':'pbt_voucher_status'    ,'l': 'PBT Voucher Status'       ,'u': None		    ,'w': '100px'}
+        ,{'k':'tom_voucher_status'    ,'l': 'TOM Voucher Status'       ,'u': None                   ,'w': '100px'}
+
+    ]
+
+    # this is lazy of me, I should reference it by a dictionary lookup but this works for now.
+    for prow in PBT_ROWS:
+	prow['pbt_offer_id'] = offer_id
+	prow['tom_promotion_id'] = PBT_ROWS[0]['pbt_offer_upstream_id']
+	
+	for trow in TOM_ROWS:
+		if prow['pbt_voucher_upstream_voucher_code'] == trow['tom_voucher_code']:
+			prow['tom_voucher_status'] = trow['tom_voucher_status']
+			prow['tom_voucher_id'] = trow['tom_voucher_id']
+
+    context = {};
+    TITLE='TOM/PBT voucher sync'; SUBTITLE= 'pass a PBT offer ID into the URL like this reporting.tippr.com/tom_pbt_voucher_sync/[offer_id]';
+    searchform = ''
+    format = request.args.get('format','grid');
+    if format == 'csv':
+        return csv_out_simple(PBT_ROWS,COLS,dict(REPORTSLUG='tom_pbt_voucher_sync_v1'));
+
+    else: #assume format == 'grid':
+        return render_template("report2.html", COLS=COLS, ROWS=PBT_ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+
+
 def tom_sales_by_date():
     sql = """ 
     select promo_start "promo_start", sum(promotions) "promotions", sum(vouchers_sold) "vouchers_sold", sum(gross_sales) "gross_sales" from (select date(promotions_run.start_date at time zone 'pst')::varchar "promo_start", agency.name "agency", count(distinct(promotions_run.id)) "promotions", count(distinct(voucher.id)) "vouchers_sold", product.price * count(voucher.id)::integer "gross_sales" from marketplace_promotion promotions_run left join marketplace_promotioninventory pi on (promotions_run.id = pi.promotion_id) left join marketplace_voucher voucher on (pi.id = voucher.product_id and voucher.status = 'assigned') left join marketplace_product product on (pi.product_id = product.id and pi.id = voucher.product_id and voucher.status = 'assigned'), marketplace_publisher publisher, marketplace_offer offer, marketplace_agency agency where agency.id = offer.agency_id and publisher.id = promotions_run.publisher_id and promotions_run.end_date < date(now()) and offer.id = promotions_run.offer_id  group by 1,2,product.price having count(distinct(voucher.id)) > 1) as detail group by 1 order by 1 desc;
@@ -110,50 +173,75 @@ select distinct(referral.transaction_id) "transaction_id", channel.name "channel
       """
       cols, resultset = throw_sql(sql % {'month_start':month_start,'publisher':publisher},DB_PBT    ); ##bind in the input p
       ROWS = [dict(zip(cols,row)) for row in resultset]
-
       for row in ROWS:
-          test = 1
-	  row['hasoffers_status'] = 'none'
-	  row['hasoffers_commission'] = '-1.00'
-          row['hasoffers_net_revenue'] = '-1.00'
-	  # MAKE SURE THERE IS A PROVIDER ID FOR THE TRANSACTION AND THAT IT IS NOT NULL/EMPTY
+	row['hasoffers_status'] = 'none'
+        row['hasoffers_commission'] = '-1.00'
+        row['hasoffers_net_revenue'] = '-1.00'
 
-          url = "https://api.hasoffers.com/Api"
-          url = url + "?Format=json"
-          url = url + "&Target=Report"
-          url = url + "&Method=getConversions"
-          url = url + "&Service=HasOffers"
-          url = url + "&Version=2"
-          url = url + "&NetworkId=tippr"
-          url = url + "&NetworkToken=NETfolm5KpltOeugIlw7JvCjX6Rlq9"
-          url = url + "&fields[]=Stat.revenue"
-          url = url + "&fields[]=Affiliate.company"
-          url = url + "&fields[]=Advertiser.company"
-          url = url + "&fields[]=Stat.source"
-          url = url + "&fields[]=Stat.payout"
-	  url = url + "&fields[]=Stat.refer"
-          url = url + "&fields[]=Stat.datetime"
-          url = url + "&fields[]=Stat.ad_id"
-	  url = url + "&fields[]=Stat.status"
-          url = url + "&filters[Stat.ad_id][conditional]=EQUAL_TO"
-          url = url + "&filters[Stat.ad_id][values]=" + str(row['hasoffers_transaction_id'])
+      ad_ids = '' 
+      count = 0
+      ORIGINAL = list(ROWS)
+      while ROWS:
+        subset = []
+	ad_ids = ''
+	#print "Length of ROWS: " + str(len(ROWS)) + " - Length of ORIGINAL: " + str(len(ORIGINAL))
+        for i in range(40):
+	  if len(ROWS) > 0:
+	    subset.append(ROWS.pop())
+      
+	for row in subset:
+	  ad_ids = ad_ids + '&filters[Stat.ad_id][values][' + str(count) + ']=' + str(row['hasoffers_transaction_id'])
+	  count = count + 1
+        # MAKE SURE THERE IS A PROVIDER ID FOR THE TRANSACTION AND THAT IT IS NOT NULL/EMPTY
 
+        url = "https://api.hasoffers.com/Api"
+        url = url + "?Format=json"
+        url = url + "&Target=Report"
+        url = url + "&Method=getConversions"
+        url = url + "&Service=HasOffers"
+        url = url + "&Version=2"
+        url = url + "&NetworkId=tippr"
+        url = url + "&NetworkToken=NETfolm5KpltOeugIlw7JvCjX6Rlq9"
+        url = url + "&fields[]=Stat.revenue"
+        url = url + "&fields[]=Affiliate.company"
+        url = url + "&fields[]=Advertiser.company"
+        url = url + "&fields[]=Stat.source"
+        url = url + "&fields[]=Stat.payout"
+        url = url + "&fields[]=Stat.refer"
+        url = url + "&fields[]=Stat.datetime"
+        url = url + "&fields[]=Stat.ad_id"
+        url = url + "&fields[]=Stat.status"
+        url = url + "&filters[Stat.ad_id][conditional]=EQUAL_TO"
+        url = url + ad_ids
 
-          f = urllib.urlopen(url)
-          json_response  = f.read()
-          try:
-                decoded_json = json.loads(json_response)
-          except:
-                print "Cannot decode the json object"
-	  try: 
-	     row['hasoffers_commission']=str(decoded_json['response']['data']['data'][0]['Stat']['payout'])
-	     row['hasoffers_status']=str(decoded_json['response']['data']['data'][0]['Stat']['status'])
+        f = urllib.urlopen(url)
+        #print url
+        json_response  = f.read()
+        #print "JSON RESPONSE: " + str(json_to_data(json_response))
+	decoded_json = ''
+        try:
+          decoded_json = json_to_data(json_response)
+        except:
+          print "Cannot decode the json object"
+        try:
+	  #print "Checking for row: " + str(row['hasoffers_transaction_id']) + " in ORIGINAL: " + str(ORIGINAL)
+	  for resprow in decoded_json['response']['data']['data']:
+		#print "Looking up resprows: " + str(resprow)
+		# being lazy, need to make rows a dictionary instead of an array
+		for row in ORIGINAL:
+		   #print "Checking " + str(row['hasoffers_transaction_id']) + " against " + str(resprow['Stat']['ad_id'])
+		   if row['hasoffers_transaction_id'] == resprow['Stat']['ad_id']:
+		      row['hasoffers_status'] = 'none'
+	              row['hasoffers_commission'] = '-1.00'
+                      row['hasoffers_net_revenue'] = '-1.00'
+                      row['hasoffers_commission']=str(resprow['Stat']['payout'])
+                      row['hasoffers_status']=str(resprow['Stat']['status'])
+                      row['hasoffers_net_revenue'] = str(resprow['Stat']['revenue'])
+		      #print "   Found a match on " + str(row['hasoffers_transaction_id'])
+        except:
+          print "Fatal error received querying for " + str(row['hasoffers_transaction_id']) + " in hasoffers"
 
-	     row['hasoffers_net_revenue'] = str(decoded_json['response']['data']['data'][0]['Stat']['revenue'])
-	  except:
-		print "Fatal error received querying for " + str(row['hasoffers_transaction_id']) + " in hasoffers"
-
-	  print decoded_json
+        print decoded_json
 
 
       COLS = [#k:field_name            l:title(\n)                        u:formatting        w:width
@@ -173,40 +261,6 @@ select distinct(referral.transaction_id) "transaction_id", channel.name "channel
       ]
 
 
-      if 0:
-   	for transaction_id in transactions:
-           # MAKE SURE THERE IS A PROVIDER ID FOR THE TRANSACTION AND THAT IT IS NOT NULL/EMPTY
-
-	   url = "https://api.hasoffers.com/Api"
-	   url = url + "?Format=json"
-	   url = url + "&Target=Report"
-	   url = url + "&Method=getConversions"
-	   url = url + "&Service=HasOffers"
-	   url = url + "&Version=2"
-	   url = url + "&NetworkId=tippr"
-	   url = url + "&NetworkToken=NETfolm5KpltOeugIlw7JvCjX6Rlq9"
-	   url = url + "&fields[]=Stat.revenue"
-	   url = url + "&fields[]=Affiliate.company"
-	   url = url + "&fields[]=Advertiser.company"
-	   url = url + "&fields[]=Stat.source"
-	   url = url + "&fields[]=Stat.affiliate_info1"
-	   url = url + "&fields[]=Stat.affiliate_info2"
-	   url = url + "&fields[]=Stat.affiliate_info3"
-	   url = url + "&fields[]=Stat.affiliate_info4"
-	   url = url + "&fields[]=Stat.affiliate_info5"
-	   url = url + "&fields[]=Stat.refer"
-	   url = url + "&fields[]=Stat.datetime"
-	   url = url + "&fields[]=Stat.ad_id"
-	   url = url + "&filters[Stat.ad_id][conditional]=EQUAL_TO"
-	   url = url + "&filters[Stat.ad_id][values]=" + str(transaction_id)
-
-
-	   f = urllib.urlopen(url)
-	   json_response  = f.read()
-	   try:
-		decoded_json = json.loads(json_response)
-	   except:
-		print "Cannot decode the json object"
       context = {};
       TITLE='HASOFFERS AFFILIATE TRANSACTIONS BY PUBLISHER & MONTH'; SUBTITLE= 'MONTH: %s PUBLISHER: %s [change in URL]'%(month_start, publisher);
       searchform = """
@@ -220,9 +274,9 @@ select distinct(referral.transaction_id) "transaction_id", channel.name "channel
       format = request.args.get('format','grid');
       if format == 'csv':
 
-        return csv_out_simple(ROWS,COLS,dict(REPORTSLUG='hasoffers_detail-v1'));
+        return csv_out_simple(ORIGINAL,COLS,dict(REPORTSLUG='hasoffers_detail-v1'));
       else: #assume format == 'grid':
-        return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
+        return render_template("report2.html", COLS=COLS, ROWS=ORIGINAL, TITLE=TITLE, SUBTITLE=SUBTITLE, SEARCH=searchform);
 
 
       # WE ALLOW THE REFERRAL TIMESTAMP AND TRANSACTION TIMESTAMP TO DIFFER BY UP TO ONE DAY
@@ -1176,7 +1230,7 @@ def offer_metrics(offer_id='1'):
 	metrics['offer_list'] = offer_list
 	
 	sql = """
-		 select publisher.name "publisher", offer.headline "name", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.id)) "orders", count(distinct(transaction.account_id)) "unique_buyers", sum(item.amount)::float "gross", count(distinct(item.id)) "voucher_count", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction, core_publisher publisher where item.offer_id = offer.id and offer.publisher_id = publisher.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3,4; 
+		 select publisher.name "publisher", offer.headline "name", offer.upstream_source "upstream_source", offer.upstream_id "upstream_id", offer.start_date "start_date", offer.end_date "end_date", count(distinct(transaction.id)) "orders", count(distinct(transaction.account_id)) "unique_buyers", sum(item.amount)::float "gross", count(distinct(item.id)) "voucher_count", (count(distinct(item.id))::float/count(distinct(transaction.id))) "avg_order_qty" from core_offer offer, core_item item, core_transaction transaction, core_publisher publisher where item.offer_id = offer.id and offer.publisher_id = publisher.id and item.transaction_id = transaction.id and offer.id = '%(offer_id)s' group by 1,2,3,4,5,6; 
 	"""
 	sql = sql % {'offer_id':offer_id}
 	cols, resultset = throw_sql(sql, DB_PBT)
@@ -1193,24 +1247,58 @@ def offer_metrics(offer_id='1'):
 	metrics['avg_order_qty'] = ROWS[0]['avg_order_qty']
 	metrics['voucher_count'] = ROWS[0]['voucher_count']
 	metrics['publisher'] = ROWS[0]['publisher']
+	metrics['upstream_source'] = ROWS[0]['upstream_source']
+	if metrics['upstream_source'] == '':
+		metrics['upstream_source'] = 'PBT'
+
+	metrics['upstream_id'] = ROWS[0]['upstream_id']
 
         sql = """
-        select transaction.status "transaction_status", voucher.status "voucher_status", count(distinct(transaction.id)) "transaction_count", count(distinct(item.id)) "voucher_count", sum(item.amount)::float "item_gross" from core_item item, core_transaction transaction, core_voucher voucher where voucher.item_ptr_id = item.id and item.offer_id = '%(offer_id)s' and item.transaction_id = transaction.id group by 1,2;
+        select transaction.status "transaction_status", count(distinct(transaction.id)) "transaction_count", sum(item.amount)::float "item_gross" from core_item item, core_transaction transaction where item.offer_id = '%(offer_id)s' and item.transaction_id = transaction.id group by 1;
 	"""
+
         sql = sql % {'offer_id':offer_id}
         cols, resultset = throw_sql(sql, DB_PBT)
         ROWS = [dict(zip(cols,row)) for row in resultset]
         metrics['transaction_status'] = ROWS
+	
+
+        sql = """
+        select voucher.status "voucher_status", count(distinct(voucher.item_ptr_id)) "voucher_count", sum(item.amount)::float "item_gross" from core_item item, core_voucher voucher where voucher.item_ptr_id = item.id and item.offer_id = '%(offer_id)s' group by 1;
+        """
+
+        sql = sql % {'offer_id':offer_id}
+        cols, resultset = throw_sql(sql, DB_PBT)
+        ROWS = [dict(zip(cols,row)) for row in resultset]
+        metrics['pbt_voucher_status'] = ROWS
+	
+	metrics['voucher_count_refunded'] = 0
+	metrics['voucher_gross_refunded'] = 0
+	for prow in ROWS:
+		if prow['voucher_status'] in ['invalidated','publisher-return','voided']:
+			metrics['voucher_count_refunded'] += prow['voucher_count']
+			metrics['voucher_gross_refunded'] += prow['item_gross']
+	
+	if metrics['upstream_source'] == 'tom' and metrics['upstream_id']:
+
+          sql = """
+          select voucher.status "voucher_status",  count(distinct(voucher.id)) "voucher_count" from marketplace_voucher voucher, marketplace_promotioninventory pi where voucher.product_id = pi.id and pi.promotion_id = '%(upstream_id)s' group by 1;
+          """
+
+          sql = sql % {'upstream_id':metrics['upstream_id']}
+          cols, resultset = throw_sql(sql, DB_TOM)
+          ROWS = [dict(zip(cols,row)) for row in resultset]
+          metrics['tom_voucher_status'] = ROWS
+
 
 	sql = """
-	select payment._polymorphic_identity "ptype", sum(payment.amount)::float "amount" from core_payment payment where payment.transaction_id in (select transaction.id from core_transaction transaction, core_offer offer, core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id) group by 1;
+	select payment.charge_type "charge_type", payment._polymorphic_identity "ptype", sum(payment.amount)::float "amount" from core_payment payment where payment.transaction_id in (select transaction.id from core_transaction transaction, core_offer offer, core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id) group by 1,2;
 	"""
         sql = sql % {'offer_id':offer_id}
         cols, resultset = throw_sql(sql, DB_PBT)
         ROWS = [dict(zip(cols,row)) for row in resultset]
-        metrics['payments'] = {}
-	for row in ROWS:
-	  metrics['payments'][row['ptype']] = row['amount']
+        metrics['payments'] = ROWS
+	
 	sql = """
 	select name "name", total_trans "trans_count", count(account) "users" from (select offer.name "name",  transaction.account_id "account", count(distinct(acct_trans.id)) "total_trans" from core_offer offer, core_transaction transaction left join core_transaction acct_trans on (transaction.account_id = acct_trans.account_id and acct_trans.occurrence <= transaction.occurrence and acct_trans.id != transaction.id), core_item item where offer.id = '%(offer_id)s' and offer.id = item.offer_id and item.transaction_id = transaction.id group by 1,2) as cust_behavior group by 1,2;
 	"""
