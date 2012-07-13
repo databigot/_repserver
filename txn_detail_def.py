@@ -16,43 +16,28 @@ class Q_Txn_Detail(QueryDef):
 	descript = 'A report to show Transaction Detail.'
 	long_running = True
 
-	#TODO: include local HELP argparse, also --version
-
-	qualifiers = {#todo: include info to allow shell args or web form
-		##TODO: CAN also use required:True
-		##should also figure out how to handle sql-lookups, and multi-selects
-		'publisher':ChoiceQualifier({
+	publisher	=ChoiceQualifier({
 				'args'		: ('-P','--publisher')
 				,'help'		:'Pick a Publisher to isolate to'
 		#		,'metavar'	:'publisher'
 				,'pick'		: ['225besteats', 'yollar', 'tippr', 'msn']
 				,'picksql'	: sql_pull_lookup('select name, title from core_publisher order by title;',DB_PBT)
 				})	#('ALL':None, string,required) 
-		,'start_dt':DateQualifier({
+	start_dt	=DateQualifier({
 				'args'		:('-S','--start')
 				,'help'		:'Include transaction after (or on) this starting date; format is YYYYMMDD'
 				})	
-		,'end_dt':DateQualifier({
+	end_dt		=DateQualifier({
 				'args'		:('-E','--end')
 				,'help'		:'Include transactions before (or on) this ending date; format is YYYYMMDD'
 				})	#(date,None) #must > start_dt, limit to <=today.  meta values= TODAY, ...
-		,'credits_only'	:BooleanQualifier({
+	credits_only	=BooleanQualifier({
 				'args'		:('-C', '--credits-only')
 				,'help'		:'Show only Credits'
 				})	#(bool,False) 
-		}
 
-#	def __init__(self, **kwargs):
-#		super(Q_Txn_Detail,self).__init__(**kwargs)
-
-	def qualify(self, publisher=None, start_dt='02-16-2012', end_dt='02-29-2012', credits_only=True):
-		self.qualifiers["publisher"] = publisher
-		self.qualifiers["start_dt"] = start_dt
-		self.qualifiers["end_dt"] = end_dt
-		self.qualifiers["credits_only"] = credits_only
-		self.eval_query()
-
-	def eval_query(self):
+	@property
+	def SQL_template(self):
 		"""
 		Get detailed closed transactions (for this pubisher, period TODO).
 		Maybe credits only.
@@ -89,8 +74,8 @@ class Q_Txn_Detail(QueryDef):
 							WHERE cp.payment_ptr_id = p.id and p.transaction_id = t.id) credit_amount
 					FROM core_transaction t, v_vouchers v
 					WHERE v.transaction_id = t.id and t.status = 'completed'
-						{% if TXNS_AFTER %} and t.occurrence::DATE >= '{{ TXNS_AFTER }}' {% endif %}
-						{% if TXNS_BEFORE %} and t.occurrence::DATE <= '{{ TXNS_BEFORE }}' {% endif %}
+						{% if START_DT %} and t.occurrence::DATE >= '{{ START_DT }}' {% endif %}
+						{% if END_DT %} and t.occurrence::DATE <= '{{ END_DT }}' {% endif %}
 			"""
 		sql_container = """
 			WITH 	v_txns AS (
@@ -113,8 +98,8 @@ class Q_Txn_Detail(QueryDef):
 					/*id, publisher, end_date, category, promotion, merchant*/
 				FROM v_txns t, v_users u, v_offers o
 				WHERE t.user_id = u.id and t.offer_id = o.id 
-					{% if CREDITS %}and t.credit_amount > 0 {% endif %}  
-					{% if PUB %} and o.publisher = '{{ PUB }}' {% endif %}
+					{% if CREDITS_ONLY %}and t.credit_amount > 0 {% endif %}  
+					{% if PUBLISHER %} and o.publisher = '{{ PUBLISHER }}' {% endif %}
 					{# if OFFER_LIST %} and o.id = any ('{ {{OFFER_LIST }} }') {% endif #}
 				{% if LIMIT %} LIMIT {{ LIMIT }} {% endif %}
 				;   	
@@ -126,18 +111,7 @@ class Q_Txn_Detail(QueryDef):
 			sql_offer_info=sql_offer_info, 
 			sql_user_info=sql_user_info) 
 
-		build_sql = Template(build_sql).render(	#then, substitute
-			LIMIT=self.limit or 0
-			,TXNS_AFTER=self.qualifiers["start_dt"]
-			,TXNS_BEFORE=self.qualifiers["end_dt"]
-			, CREDITS=self.qualifiers["credits_only"]
-			, PUB=self.qualifiers["publisher"])
-
-			#expects offer_list to be string,string,string -- not quoted.
-			#todo: add the numerics: voucher#, net, gross, etc.
-		#	sql = render_template_string(build_sql, OFFER_LIST=offers, PUB=publisher)
-
-		self.sql = build_sql
+		return build_sql
 
 class Q_TXNPayment_Detail(QueryDef):
 	"""
@@ -148,12 +122,7 @@ class Q_TXNPayment_Detail(QueryDef):
 	descript = 'A report to show Transaction Payment Detail.'
 	long_running = True
 
-	#TODO: include local HELP argparse, also --version
-
-	qualifiers = {#todo: include info to allow shell args or web form
-		##TODO: CAN also use required:True
-		##should also figure out how to handle sql-lookups, and multi-selects
-		'publisher':	ChoiceQualifier({
+	publisher	=ChoiceQualifier({
 				'args'		: ('-P','--publisher')
 				,'help'		:'Pick a Publisher to isolate to'
 		#		,'metavar'	:'publisher'
@@ -165,126 +134,23 @@ class Q_TXNPayment_Detail(QueryDef):
 						ORDER BY title;"""
 					,DB_PBT)
 				})	#('ALL':None, string,required) 
-		,'start_dt':	DateQualifier({
+	start_dt	=DateQualifier({
 				'label'		:'Start Date (mm/dd/yy)'
 				,'args'		:('-S','--start')
 				,'help'		:'Include transaction after (or on) this starting date; format is YYYYMMDD'
 				})	
-		,'end_dt':	DateQualifier({
+	end_dt		=DateQualifier({
 				'label'		:'End Date (mm/dd/yy)',
 				'args'		:('-E','--end')
 				,'help'		:'Include transactions before (or on) this ending date; format is YYYYMMDD'
 				})	#(date,None) #must > start_dt, limit to <=today.  meta values= TODAY, ...
-		,'credits_only'	:BooleanQualifier({
+	credits_only	=BooleanQualifier({
 				'args'		:('-C', '--credits-only')
 				,'help'		:'Show only Credits'
 				})	#(bool,False) 
-		}
 
-#	def __init__(self, **kwargs):
-#		super(Q_Txn_Detail,self).__init__(**kwargs)
-
-	def OLDeval_query(self):
-		"""
-		Get detailed payments for  closed transactions (for this pubisher, period TODO).
-		Maybe credits only.
-		"""
-		#TODO: to add channel info: go offer->channel, and ->geography, to get city (or use channel title)
-		sql_offer_info = """
-				SELECT o.id, p.name publisher, o.end_date::varchar promotion_end, ad.category_id category, o.headline promotion,
-						 ad.name merchant, 
-						(SELECT ag_acc.fullname agent 
-							FROM core_account ag_acc, core_agent ag
-							WHERE ag_acc.id = ag.account_id and ag.id = o.agent_id) agent
-					FROM core_publisher p, core_advertiser ad, core_offer o
-					WHERE o.publisher_id = p.id and o.advertiser_id = ad.id
-					{% if PUB %} and p.name = '{{ PUB }}' {% endif %}
-			"""
-		sql_user_info = """
-				SELECT a.id, a.fullname as name, a.gender, a.birthday::DATE::VARCHAR, e.email, a.date_joined::DATE::VARCHAR, a.zipcode
-					FROM core_account a, core_emailaddress e
-					WHERE a.email_id = e.id
-			"""
-		sql_purchase_referral = """
-                        SELECT transaction_id, source deal_source, campaign deal_campaign, medium deal_medium
-                                FROM core_referral
-                                WHERE event ='offer-purchase'
-                """
-		sql_txn_info = """
-				WITH v_vouchers AS (
-					SELECT i.transaction_id,  max(i.offer_id) offer_id, 
-							sum(1) qty, sum(i.amount) amount
-						FROM core_item i, core_voucher v
-						WHERE v.item_ptr_id = i.id and
-							v.status in ('issued', 'purchased', 'redeemed')
-					GROUP BY i.transaction_id
-				)
-				SELECT t.id, t.occurrence::DATE::VARCHAR txn_date, t.account_id user_id, t.amount::float txn_amount,
-						v.offer_id, v.qty, v.amount::FLOAT voucher_amount
-					FROM core_transaction t, v_vouchers v
-					WHERE v.transaction_id = t.id and t.status = 'completed'
-		"""
-		sql_pmt_info = """
-				SELECT id, created pmt_date, amount pmt_amount, charge_type charge_type, transaction_id 
-					/*add in CREDIT|MONETARY */
-					FROM core_payment p
-					WHERE true {% if PMTS_AFTER %} and created::DATE >= '{{ PMTS_AFTER }}' {% endif %}
-						{% if PMTS_BEFORE %} and created::DATE <= '{{ PMTS_BEFORE }}' {% endif %}
-			"""
-		sql_container = """
-			WITH 	v_pmts AS (
-						{{sql_pmt_info}}
-					),
-					v_txns AS (
-						{{sql_txn_info}}
-					),
-					v_users AS (
-						{{sql_user_info}}
-					),
-					v_offers AS (
-						{{sql_offer_info}}
-					)
-				{{sql_main}}
-			"""
-		sql_main = """
-			SELECT 	p.*,
-					/*id, pmt_date, pmt_amount, charge_type, transaction_id */ 
-			 	t.*,
-					/*id, txn_date, user_id, txn_amount, offer_id, qty, voucher_amount, ##!! credit_amount */
-				u.*,
-					/*id, name, gender, birthday, email, date_joined, zipcode*/
-				o.*
-					/*id, publisher, end_date, category, promotion, merchant*/
-				FROM v_pmts p, v_txns t, v_users u, v_offers o
-				WHERE p.transaction_id = t.id and t.user_id = u.id and t.offer_id = o.id 
-					{% if CREDITS %}and t.credit_amount > 0 {% endif %}  
-					{# if OFFER_LIST %} and o.id = any ('{ {{OFFER_LIST }} }') {% endif #}
-				{% if LIMIT %} LIMIT {{ LIMIT }}{% endif %}
-				;   	
-		"""
-	
-		build_sql = Template(sql_container).render( #combine
-			sql_main=sql_main,
-			sql_pmt_info=sql_pmt_info,
-			sql_purchase_referral=sql_purchase_referral,
-			sql_txn_info=sql_txn_info, 
-			sql_offer_info=sql_offer_info, 
-			sql_user_info=sql_user_info) 
-
-		build_sql = Template(build_sql).render(	#then, substitute
-			LIMIT=self.limit
-			,PMTS_AFTER=self.qualifiers["start_dt"]
-			,PMTS_BEFORE=self.qualifiers["end_dt"]
-			, CREDITS=self.qualifiers["credits_only"]
-			, PUB=self.qualifiers["publisher"])
-
-			#expects offer_list to be string,string,string -- not quoted.
-			#todo: add the numerics: voucher#, net, gross, etc.
-		#	sql = render_template_string(build_sql, OFFER_LIST=offers, PUB=publisher)
-
-		self.sql = build_sql
-
-	def eval_query(self):
+	@property
+	def SQL_template(self):
 		"""
 		Get detailed payments for  closed transactions (for this pubisher, period TODO).
 		Maybe credits only.
@@ -339,29 +205,17 @@ class Q_TXNPayment_Detail(QueryDef):
 				) as u on t.account_id = u.id
 				
         	WHERE t.status in ('completed','voided') /*and p.charge_type = 'credit'*/
-			{% if PUB %} and o.publisher = '{{ PUB }}' {% endif %}
-/*			{% if CREDITS %}and t.credit_amount > 0 {% endif %}  
+			{% if PUBLISHER %} and o.publisher = '{{ PUBLISHER }}' {% endif %}
+/*			{% if CREDITS_ONLY %}and t.credit_amount > 0 {% endif %}  
 */			{# if OFFER_LIST %} and o.id = any ('{ {{OFFER_LIST }} }') {% endif #}
-			{% if PMTS_AFTER %}and p.created::DATE >= '{{ PMTS_AFTER }}' {% endif %}
-			{% if PMTS_BEFORE %} and p.created::DATE <= '{{ PMTS_BEFORE }}' {% endif %}
+			{% if START_DT %}and p.created::DATE >= '{{ START_DT }}' {% endif %}
+			{% if END_DT %} and p.created::DATE <= '{{ END_DT }}' {% endif %}
 		/* ORDER by pmt_date asc */
 		ORDER by txn_date, txn_id, pmt_date asc
 
 		{% if LIMIT %}LIMIT {{ LIMIT }}{% endif %}
-			"""
-
-		build_sql = Template(build_sql).render(	#then, substitute
-			LIMIT=self.limit
-			,PMTS_AFTER=self.qualifiers["start_dt"].value_cleaned
-			,PMTS_BEFORE=self.qualifiers["end_dt"].value_cleaned
-			, CREDITS=self.qualifiers["credits_only"].value_cleaned
-			, PUB=self.qualifiers["publisher"].value_cleaned)
-
-			#expects offer_list to be string,string,string -- not quoted.
-			#todo: add the numerics: voucher#, net, gross, etc.
-		#	sql = render_template_string(build_sql, OFFER_LIST=offers, PUB=publisher)
-
-		self.sql = build_sql
+		;	"""
+		return build_sql
 
 class Q_MSN_Detail(QueryDef):
 	"""
@@ -376,21 +230,17 @@ class Q_MSN_Detail(QueryDef):
 	descript = 'Detailed Txn report for MSN'
 	long_running = True
 
-	#TODO: include local HELP argparse, also --version
-
-	qualifiers = {#todo: include info to allow shell args or web form
-		##TODO: CAN also use required:True
-		'publisher':	ChoiceQualifier({
+	publisher	=ChoiceQualifier({
 				'args'		:('-P','--publisher')
 				,'help'		:'Pick a Publisher to isolate to'
 		#		,'metavar'	:'publisher'
 				,'pick'		:['225besteats', 'yollar', 'tippr', 'msn']
 				})	#('ALL':None, string,required) 
-		,'start_dt':	DateQualifier({
+	start_dt	=DateQualifier({
 				'args'		:('-S','--start')
 				,'help'		:'Include transaction after (or on) this starting date; format is YYYYMMDD'
 				})	
-		,'end_dt':	DateQualifier({
+	end_dt		=DateQualifier({
 				'args'		:('-E','--end')
 				,'help'		:'Include transactions before (or on) this ending date; format is YYYYMMDD'
 				})	#(date,None) #must > start_dt, limit to <=today.  meta values= TODAY, ...
@@ -400,21 +250,13 @@ class Q_MSN_Detail(QueryDef):
 	#			,'metavar'	:'0a0f12137cfb4a288542a3696e21e28c'
 	#			,'help'		:'Show only these Offers'
 	#			}	#(list,[]) 
-		,'completed_only':BooleanQualifier({
+	completed_only	=BooleanQualifier({
 				'args'		:('-C', '--complete-only')
 				,'help'		:'Show only Completed transactions'
 				})	#(bool,False) 
-		}
 
-	def qualify(self, publisher=None, start_dt='02-16-2012', end_dt='02-29-2012', offer_list=[], completed_only=True):
-		self.qualifiers["publisher"] = publisher
-		self.qualifiers["start_dt"] = start_dt
-		self.qualifiers["end_dt"] = end_dt
-		self.qualifiers["offer_list"] = offer_list
-		self.qualifiers["completed_only"] = completed_only
-		self.eval_query()
-
-	def eval_query(self):
+	@property
+	def SQL_template(self):
 		"""
                 Get detailed closed transactions (for this pubisher, period TODO).
                 Maybe credits only.
@@ -463,8 +305,8 @@ class Q_MSN_Detail(QueryDef):
                                 FROM core_transaction t, v_vouchers v
                                 WHERE v.transaction_id = t.id 
 					{% if COMPLETED_ONLY %} and t.status = 'completed' {% endif %}
-                                        {% if TXNS_AFTER %} and t.occurrence::DATE >= '{{ TXNS_AFTER }}' {% endif %}
-                                        {% if TXNS_BEFORE %} and t.occurrence::DATE <= '{{ TXNS_BEFORE }}' 
+                                        {% if START_DT %} and t.occurrence::DATE >= '{{ START_DT }}' {% endif %}
+                                        {% if END_DT %} and t.occurrence::DATE <= '{{ END_DT }}' 
 					-- ::DATE cast is trick to include the final day {% endif %} 
         """
 		sql_container = """
@@ -493,7 +335,7 @@ class Q_MSN_Detail(QueryDef):
                                 /*transaction_id, deal_source, deal_campaign, deal_medium*/
                         FROM v_txns t, v_users u, v_deals d, v_offers o
                         WHERE t.user_id = u.id and t.offer_id = o.offer_id and d.transaction_id = t.transaction_id
-                                {% if PUB %} and o.publisher = '{{ PUB }}' {% endif %}
+                                {% if PUBLISHER %} and o.publisher = '{{ PUBLISHER }}' {% endif %}
                                 {% if OFFER_LIST %} and o.offer_id = any ('{ {{ OFFER_LIST|join(',') }} }') {% endif %}
 			{% if LIMIT %} LIMIT {{ LIMIT }}{% endif %}  	
                                 ;
@@ -506,20 +348,7 @@ class Q_MSN_Detail(QueryDef):
                         sql_offer_info=sql_offer_info,
                         sql_deal_info=sql_deal_info
 					)
-
-		build_sql = Template(build_sql).render( #then, substitute
-			LIMIT=self.limit
-                        ,TXNS_AFTER=self.qualifiers["start_dt"],
-			TXNS_BEFORE=self.qualifiers["end_dt"],
-			PUB=self.qualifiers["publisher"], 
-			OFFER_LIST=self.qualifiers["offer_list"],
-			COMPLETED_ONLY=self.qualifiers["completed_only"]
-			)
-
-        #expects order_list to be string,string,string -- not quoted.
-        #todo: add the numerics: voucher#, net, gross, etc.
-
-		self.sql = build_sql
+		return build_sql
 
 
 class R_Txn_Detail(RepDef):
