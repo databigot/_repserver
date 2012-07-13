@@ -23,6 +23,7 @@ FORMATS_DEFAULT = formatter_default
 #QUERIES = [txn_detail_def.Q_Txn_Detail(), txn_detail_def.Q_MSN_Detail(), txn_detail_def.Q_TXNPayment_Detail()]
 REPORTS = [f.R_Test_Args(), f.R_Test_Report(), txn_detail_def.R_Txn_Detail(), txn_detail_def.R_MSN_Detail(), txn_detail_def.R_TXNPayment_Detail()]
 PROG = sys.argv[0]
+DEBUG = False #True
 
 def init_parser(PROG, QUERIES): #uses QUERIES & PROG
     	import argparse
@@ -35,13 +36,15 @@ def init_parser(PROG, QUERIES): #uses QUERIES & PROG
 			, usage='%(prog)s [options] <report-name> [report-options]')
 
 	def parser_add_arg(*args, **kwargs):
-		print " BASE sp.add_argument("+','.join(args)+','+ \
-			','.join(["%s='%s'"%(k,v) for k,v in kwargs.iteritems()])+ \
-			" )"
+		if DEBUG:
+			print " BASE sp.add_argument("+','.join(args)+','+ \
+				','.join(["%s='%s'"%(k,v) for k,v in kwargs.iteritems()])+ \
+				" )"
 		parser.add_argument(*args, **kwargs)
 
 #	parser.add_argument('report', default=None, help='Report to run')
 	#add_argument('-l','--list', help='List available Reports')
+	parser_add_arg('--debug', dest='DEBUG', action='store_true', default=False, help='Turn on Debugging info')
 
 	parser_add_arg('--requestor', dest='requestor', help='Required for restricted reports, provide your email address')
 
@@ -80,7 +83,7 @@ def init_parser(PROG, QUERIES): #uses QUERIES & PROG
 
 def parse_commandline_args(parser, argv):
 	args_obj = parser.parse_args(argv[1:])
-	print args_obj
+	if DEBUG:	print args_obj
 	return args_obj
 
 def build_qualified_query(report_obj, args_obj):
@@ -146,8 +149,8 @@ def main():
 	query_obj = build_qualified_query(report_obj, args_obj); 
 	#at this point the query_obj is fully qualified successfully, and ready for throwing at the db.
 
-	print query_obj.debug_qualifiers()
-	return 
+	if DEBUG: print query_obj.debug_qualifiers()
+#	return 
 
 	#args = vars(args_obj)
 	if args_obj.sqlonly:
@@ -224,8 +227,8 @@ Request Details:out_format={{request_format}}, flags={{request_flags}}
 Dataset: #TODO:/or Fixture 
         Query:  {{ base_query }} [version {{qry_v}}]
         Qualifiers:
-		{%- for k,v in query_qualifiers|dictsort %}                
-		{{k}}: \t{{ v | string }}
+		{%- for k,v in query_qualifiers.iteritems() %}                
+		{{k}}: \t{{ v.value_raw | string }}
 		{%- endfor %}
 -------------
 Dataset:
@@ -248,8 +251,8 @@ Request Details:out_format={{request_format}}, flags={{request_flags}}
 Dataset: #TODO:/or Fixture 
         Query:  {{ base_query }} [version {{qry_v}}]
         Qualifiers:
-		{%- for k,v in query_qualifiers|dictsort %}                
-		{{k}}: \t{{ v | string }}
+		{%- for k,v in query_qualifiers.iteritems() %}                
+		{{k}}: \t{{ v.value_raw | string }}
 		{%- endfor %}
 
 -------------
@@ -279,8 +282,8 @@ Request Details:out_format={{request_format}}, flags={{request_flags}}
 Dataset: #TODO:/or Fixture 
         Query:  {{ base_query }} [version {{qry_v}}]
         Qualifiers:
-		{%- for k,v in query_qualifiers|dictsort %}                
-		{{k}}: \t{{ v | string }}
+		{%- for k,v in query_qualifiers.iteritems() %}                
+		{{k}}: \t{{ v.value_raw | string }}
 		{%- endfor %}
 
 -------------
@@ -303,8 +306,8 @@ Request Details:out_format={{request_format}}, flags={{request_flags}}
 Dataset: #TODO:/or Fixture 
         Query:  {{ base_query }} [version {{qry_v}}]
         Qualifiers:
-		{%- for k,v in query_qualifiers|dictsort %}                
-		{{k}}: \t{{ v | string }}
+		{%- for k,v in query_qualifiers.iteritems() %}                
+		{{k}}: \t{{ v.value_raw | string }}
 		{%- endfor %}
 
 -------------
