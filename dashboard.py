@@ -68,6 +68,7 @@ def login():
 def logout():
     if g.user:
         del session['openid']
+    return redirect("/")
     return redirect("/login")
 
 
@@ -463,6 +464,10 @@ gen_skus_wform = app.route("/volusion", methods=['GET', 'POST'] )(gen_skus_wform
 from indev import lr_request_rpt
 #request_rpt = app.route("/lr/", methods=['GET','POST'])(request_rpt)
 lr_request_rpt = app.route("/lr/", methods=['GET','POST'])(lr_request_rpt)
+
+from indev import pmt_detail_view
+pmt_detail_view = app.route('/tests/pmt_detail', methods=['GET','POST'])(pmt_detail_view)
+
 from indev import test_args
 #txn_detail = app.route('/lr/txn_detail', methods=['GET','POST'])(txn_detail)
 test_args = app.route('/tests/test-args', methods=['GET','POST'])(test_args)
