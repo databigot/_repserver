@@ -68,6 +68,7 @@ def login():
 def logout():
     if g.user:
         del session['openid']
+    return redirect("/")
     return redirect("/login")
 
 
@@ -117,6 +118,7 @@ def index():
 
         reports['OTHER REPORTS'] = [
                 {'name': 'Hasoffers transactions by publisher/date', 'url': url_for('hasoffers_transaction_detail',month_start='2012-03-01',publisher='frugaling')}
+		,{'name': 'Voucher debug tool between TOM and PBT', 'url': url_for('tom_pbt_voucher_sync',offer_id=1)}
         	]
 
 
@@ -336,6 +338,9 @@ from reports import account_detail
 account_detail = app.route("/account_detail/<id>")(account_detail)
 account_detail = app.route("/account_detail/", methods=['GET','POST'])(account_detail)
 
+from reports import tom_pbt_voucher_sync
+tom_pbt_voucher_sync = app.route("/tom_pbt_voucher_sync/<offer_id>")(tom_pbt_voucher_sync)
+
 from reports import cumulative_tom_sales_by_site
 cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/<status>")(cumulative_tom_sales_by_site)
 cumulative_tom_sales_by_site = app.route("/cumulative_tom_sales_by_site/", methods=['GET','POST'])(cumulative_tom_sales_by_site)
@@ -464,6 +469,10 @@ gen_skus_wform = app.route("/volusion", methods=['GET', 'POST'] )(gen_skus_wform
 from indev import lr_request_rpt
 #request_rpt = app.route("/lr/", methods=['GET','POST'])(request_rpt)
 lr_request_rpt = app.route("/lr/", methods=['GET','POST'])(lr_request_rpt)
+
+from indev import pmt_detail_view
+pmt_detail_view = app.route('/tests/pmt_detail', methods=['GET','POST'])(pmt_detail_view)
+
 from indev import test_args
 #txn_detail = app.route('/lr/txn_detail', methods=['GET','POST'])(txn_detail)
 test_args = app.route('/tests/test-args', methods=['GET','POST'])(test_args)

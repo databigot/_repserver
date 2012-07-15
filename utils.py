@@ -92,14 +92,14 @@ def data_to_texttable(ROWS, COLS, CONTEXT):
 		col_width[col_name] = _wid
 	justifier = {
 	#TODO: handle 'u'-type, handle 'percent', 'linkto', 'currency', etc.
-		None:		(lambda _val, _wid: str(_val or '').ljust(_wid))
-		,'string': 	(lambda _val, _wid: str(_val or '').ljust(_wid))
+		None:		(lambda _val, _wid: unicode(_val or '').ljust(_wid))
+		,'string': 	(lambda _val, _wid: unicode(_val or '').ljust(_wid))
 		,'number':	(lambda _val, _wid: str(_val).rjust(_wid))
 		,'date':	(lambda _val, _wid: str(_val).rjust(_wid))
 		}
 	formatter = {
-		None:		(lambda _val: str(_val or ''))
-		,'string': 	(lambda _val: str(_val or ''))
+		None:		(lambda _val: unicode(_val or ''))
+		,'string': 	(lambda _val: unicode(_val or ''))
 		,'number':	(lambda _val: str(_val)) #commify, zero-blank, currency, percent
 		,'date':	(lambda _val: str(_val)) #format date?
 		}
@@ -121,9 +121,9 @@ def data_to_texttable(ROWS, COLS, CONTEXT):
 	print >>textout, ' |'+'|'.join([c['l'].center(col_width[c['k']]) for c in COLS])+'| '
 	print >>textout, ' |'+'+'.join(['-'*col_width[c['k']] for c in COLS])+'| '
 	for r in ROWS:			
-		print >>textout, ' |'+'|'.join(
+		print >>textout, u' |'+u'|'.join(
 			[justifier[c['t']](formatter[c['t']](r[c['k']]),col_width[c['k']]) 
-				for c in COLS])	+'| '
+				for c in COLS])	+u'| '
 	print >>textout, ' \\'+'+'.join(['-'*col_width[c['k']] for c in COLS])+'/ '
 	print >>textout, ' (%s rows)'% len(ROWS)
 	return textout.getvalue(), 'text/plain', 'text/plain'
@@ -239,6 +239,7 @@ def store_doc_to_s3(doc,unique_name,headers=None, use_prefix=None):
 
 	url = key.generate_url(100000000, force_http=True)
 	return url
+
 
 def store_as_mongo_fixture(unique_name, query, qualifiers, doc):
 	MONGO_HOST = 'localhost' #TODO: move to settings?
@@ -381,6 +382,121 @@ def email_senddoc(addr_from="reporting@tippr.com",addr_to=[], subject="", body=N
 	smtp.sendmail(addr_from, addr_to, msg.as_string())
 	smtp.quit()
 
+
+class SortedDict(dict):
+    """
+    A dictionary that keeps its keys in the order in which they're inserted.
+    copied from django/utils/datastructures.py
+    """
+    def __new__(cls, *args, **kwargs):
+        instance = super(SortedDict, cls).__new__(cls, *args, **kwargs)
+        instance.keyOrder = []
+        return instance
+
+    def __init__(self, data=None):
+        if data is None:
+            data = {}
+        super(SortedDict, self).__init__(data)
+        if isinstance(data, dict):
+            self.keyOrder = data.keys()
+        else:
+            self.keyOrder = []
+            seen = set()
+            for key, value in data:
+                if key not in seen:
+                    self.keyOrder.append(key)
+                    seen.add(key)
+
+    def __deepcopy__(self, memo):
+        return self.__class__([(key, deepcopy(value, memo))
+                               for key, value in self.iteritems()])
+
+    def __setitem__(self, key, value):
+        if key not in self:
+            self.keyOrder.append(key)
+        super(SortedDict, self).__setitem__(key, value)
+
+    def __delitem__(self, key):
+        super(SortedDict, self).__delitem__(key)
+        self.keyOrder.remove(key)
+
+    def __iter__(self):
+        return iter(self.keyOrder)
+
+    def pop(self, k, *args):
+        result = super(SortedDict, self).pop(k, *args)
+        try:
+            self.keyOrder.remove(k)
+        except ValueError:
+            # Key wasn't in the dictionary in the first place. No problem.
+            pass
+        return result
+
+    def popitem(self):
+        result = super(SortedDict, self).popitem()
+        self.keyOrder.remove(result[0])
+        return result
+
+    def items(self):
+        return zip(self.keyOrder, self.values())
+
+    def iteritems(self):
+        for key in self.keyOrder:
+            yield key, self[key]
+
+    def keys(self):
+        return self.keyOrder[:]
+
+    def iterkeys(self):
+        return iter(self.keyOrder)
+
+    def values(self):
+        return map(self.__getitem__, self.keyOrder)
+
+    def itervalues(self):
+        for key in self.keyOrder:
+            yield self[key]
+
+    def update(self, dict_):
+        for k, v in dict_.iteritems():
+            self[k] = v
+
+    def setdefault(self, key, default):
+        if key not in self:
+            self.keyOrder.append(key)
+        return super(SortedDict, self).setdefault(key, default)
+
+    def value_for_index(self, index):
+        """Returns the value of the item at the given zero-based index."""
+        return self[self.keyOrder[index]]
+
+    def insert(self, index, key, value):
+        """Inserts the key, value pair before the item with the given index."""
+        if key in self.keyOrder:
+            n = self.keyOrder.index(key)
+            del self.keyOrder[n]
+            if n < index:
+                index -= 1
+        self.keyOrder.insert(index, key)
+        super(SortedDict, self).__setitem__(key, value)
+
+    def copy(self):
+        """Returns a copy of this object."""
+        # This way of initializing the copy means it works for subclasses, too.
+        obj = self.__class__(self)
+        obj.keyOrder = self.keyOrder[:]
+        return obj
+
+    def __repr__(self):
+        """
+        Replaces the normal dict.__repr__ with a version that returns the keys
+        in their sorted order.
+        """
+        return '{%s}' % ', '.join(['%r: %r' % (k, v) for k, v in self.items()])
+
+    def clear(self):
+        super(SortedDict, self).clear()
+        self.keyOrder = []
 
 
 
