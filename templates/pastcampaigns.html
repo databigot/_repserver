@@ -20,9 +20,19 @@
         <h2>{{ p["name"] }}</h2>
 
         <table style="margin-left:50px; border=1px solid black" cellpadding=4 border=1>
-            <tr><td width=400><b>Offer headline</b><br /></td><td width=80><b>Pub. Date<br /></b></td><td width=80><b>Status</b><br /></td><td><b>Channels&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Sailthru Schedule</b><br /></td></tr>
+            <tr><td width=350><b>Offer headline</b><br /></td><td width=80><b>Pub. Date<br /></b></td><td width=80><b>Status</b><br /></td><td>
+            <table><tr>
+              <td width=150><b>Channel</b></td>
+              <td width=50></td>
+              <td width=50 align=center># emails</td>
+              <td width=50 align=center>delivered</td>
+              <td width=50 align=center>bounced</td>
+              <td width=50 align=center>open</td>
+              <td width=50 align=center>click</td>
+            </tr></table>
+            </td></tr>
         {% for o in p["offers"] %}
-            <tr class="{% if o["status"] != 'scheduled' and o["status"] != 'published' %}warning{%endif%}">
+            <tr class="{% if o["status"] != 'processing' and o["status"] != 'published' and o["status"] != 'closed' %}warning{%endif%}">
               <td width=400 valign=top>
                 <a target="_blank" href="http://tippr.com/admin/core/offer/{{ o["id"] }}"><img src="/static/imgs/mag.png" alt="Edit Offer in Admin"></a>&nbsp;&nbsp;
                 {{ o["headline"] }}
@@ -32,13 +42,19 @@
               <td valign=top>
                 <table cellspacing=0 cellpadding=2>
                     {% for c in o["channels"] %}
-                        <tr class="{% if (o["status"] == 'scheduled' or o["status"] == 'published') and not p["blasts"][(c, o["headline"])]  %}alert{% endif %}" >
+                        {% set blast=blasts[o["id"]+"|"+c] %}
+                        <tr class="{% if (not blast or (blast["status"] != "sent")) and (o["status"] in ['processing', 'published','closed'])  %}alert{% endif %}">
                           <td width=150>{{ c }}</td>
-                          <td width=110>
-                            {% if p["blasts"][ ( c, o["headline"] ) ] %}
-                                {{ p["blasts"][ (c, o["headline"] ) ]["schedule_time"].astimezone(timezones[c]).strftime("%m/%d %H:%M %Z") }}
-                            {% endif %}
-                          <td>
+                          {% if blast %}
+                            <td width=50 align=center>{{ blast["status"] }}</td>
+                            <td width=50 align=center>{{ blast["email_count"] }}</td>
+                            <td width=50 align=center>{{ blast["delivered_total"] }}</td>
+                            <td width=50 align=center>{{ blast["hardbounce_total"] }}</td>
+                            <td width=50 align=center>{{ blast["open_total"] }}</td>
+                            <td width=50 align=center>{{ blast["click_total"] }}</td>
+                          {% else %}
+                            <td width=300 align=center colspan=6>No Sailthru Blast</td>
+                          {% endif %}
                         </tr>
                     {% endfor %}
                 </table>

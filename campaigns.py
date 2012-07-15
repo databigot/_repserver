@@ -87,26 +87,72 @@ def get_offers( conn, dt, publisher ):
     return sorted(offers, key=lambda x: sortorder.index( x["status"] )), timezones
 
 
-def showcampaigns():
-    conn = psycopg2.connect(db_connectstring(DB_PBT))
+def get_past_blasts( conn, dt ):
+
+    blast_query = ( "select o.id, o.publisher_id, c.providerid,  m.apikey, m.secretkey, "
+                    "       array( select s.name from core_segment s, core_campaign_segments cs where cs.segment_id = s.id and cs.campaign_id = c.id ) as segments "
+                    "  from core_offer o, core_offer_campaigns oc, core_campaign c, core_mailinglist m "
+                    " where (c.list_id = m.id) and  (oc.campaign_id = c.id) and (oc.offer_id = o.id) and (o.start_date = %s) " )
+
+    curr = conn.cursor()
+    curr.execute( blast_query, (dt, ) )
+    rows = curr.fetchall()
+
+    blasts = {}
+    for row in rows:
+        params = { "blast_id" : row[2],
+                   "api_key" : row[3],
+                   "format" : "json" }
+
+        params["sig"] = md5( row[4]+"".join( sorted( [a[1] for a in params.items()] ) ) ).hexdigest()
+
+        url = "http://api.sailthru.com/blast?"+urlencode(params)
+        try:
+            f = urlopen( url )
+            data = loads( f.read() )
+
+            blasts[ row[0]+"|"+row[5][0] ] = data
+        except:
+            print "problem with blast #",row[2]
+
+    return blasts
+
+
+def showcampaigns(datestr = None):
+
     tznow = datetime.now(tz=pytz.utc)
     today = tznow.astimezone( pytz.timezone("America/Chicago") ).date()
-    tomorrow = today+timedelta(days=1)
+    
+    if not datestr:
+        dt = today+timedelta(days=1)   # use tomorrow's date
+    else:
+        dt = datetime.strptime( datestr, "%Y-%m-%d").date()   # use the date supplied
 
-    pubs = get_publishers(conn, tomorrow)
+    dtrange = [ dt+timedelta(days=d-7) for d in xrange(0,15) ]
+
+
+    conn = psycopg2.connect(db_connectstring(DB_PBT))
+    pubs = get_publishers(conn, dt)
     tzmaster = {}
 
-    for pub in pubs:
-        pub["blasts"] = {}
-        for key in pub["keys"]:
-            try:
-                pub["blasts"].update( get_sailthru_blasts( key[0], key[1] ) )
-		print pub['name']
-            except Exception as e:
-                print "error getting blasts for %s with (%s, %s): %s" % (pub["name"], key[0], key[1], e)
+    if (dt > today):
 
-        pub["offers"], timezones = get_offers( conn, tomorrow, pub["id"] )
-        tzmaster.update(timezones)
+        for pub in pubs:
+            pub["blasts"] = {}
+            for key in pub["keys"]:
+                try:
+                    pub["blasts"].update( get_sailthru_blasts( key[0], key[1] ) )
+                except Exception as e:
+                    print "error getting blasts for %s with (%s, %s): %s" % (pub["name"], key[0], key[1], e)
 
-    return render_template('campaigns.html', pubs=pubs, timezones=tzmaster, tomorrow=tomorrow)
+            pub["offers"], timezones = get_offers( conn, dt, pub["id"] )
+            tzmaster.update(timezones)
+        return render_template('campaigns.html', pubs=pubs, timezones=tzmaster, tomorrow=dt, dtrange=dtrange)
 
+    else:    # if it happened in the past, get blast info
+        blasts = get_past_blasts(conn, dt)
+        for pub in pubs:
+            pub["offers"], timezones = get_offers( conn, dt, pub["id"] )
+            tzmaster.update(timezones)
+
+        return render_template('pastcampaigns.html', pubs=pubs, timezones=tzmaster, blasts=blasts, tomorrow=dt, dtrange=dtrange)
