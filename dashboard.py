@@ -331,6 +331,7 @@ def listpubs():
     return render_template("report2.html", COLS=COLS, ROWS=ROWS, TITLE=TITLE, SUBTITLE=SUBTITLE);
 
 from campaigns import showcampaigns
+showcampaigns = app.route("/campaigns/<datestr>")(showcampaigns)
 showcampaigns = app.route("/campaigns/")(showcampaigns)
 
 from reports import account_detail
