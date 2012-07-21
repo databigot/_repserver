@@ -141,6 +141,10 @@ tr {
 <div class='report-date'>{{ now }}<br/> {{ g.user }}</div><br />
 {% if BACK %}<div><a href='{{ BACK }}'>Go Back</a></div><br />{% endif %}
 
+{% if FORM %}
+	{{ FORM | safe }}
+{% endif %}
+
 {% if SELECTOR %}
 {% for key,value in SELECTOR.list %}
 	{% if key==SELECTOR.current %}

@@ -89,11 +89,11 @@ def index():
 
         reports['MARKETPLACE REPORTS'] = [
                 {'name': 'TOM Dashboard'                        ,'url': url_for('tom_dashboard')}
-		,{'name': 'TOM voucher sales by site'           ,'url': url_for('cumulative_tom_sales_by_site',status='assigned')}
+		,{'name': 'TOM voucher sales by site'           ,'url': url_for('cumulative_tom_sales_by_site')}
                 ,{'name': 'TOM sales by date'                   ,'url': url_for('tom_sales_by_date')}
-                ,{'name': 'TOM activity by agency'              ,'url': url_for('tom_activity_by_agency',rdate='2012-05-01')}
+                ,{'name': 'TOM activity by agency'              ,'url': url_for('tom_activity_by_agency')}
                 ,{'name': 'TOM activity by publisher'           ,'url': url_for('tom_activity_by_publisher')}
-                ,{'name': 'TOM publisher promotion detail'      ,'url': url_for('tom_publisher_promotions',publisher='BigTip')}
+                ,{'name': 'TOM promotion detail'      ,'url': url_for('tom_promotion_detail')}
                 ,{'name': 'TOM local inventory levels'          ,'url': url_for('tom_local_inventory',status='approved')}
                 ,{'name': 'TOM offers per market'               ,'url': url_for('tom_offers_per_market')}
                 ,{'name': 'TOM Inventory of Non-National Offers'                ,'url': url_for('tom_detailed_inventory_non_national')}
@@ -123,8 +123,9 @@ def index():
 
 
 	reports['TOOLS'] = [
-		{'name': 'Finn & Maddy Code Generator'		,'url': '/volusion'},
-        {'name': 'Email Schedule Checker',           'url': '/campaigns'}
+		{'name': 'Finn & Maddy Code Generator'		,'url': '/volusion'}
+        	,{'name': 'Email Schedule Checker',           'url': '/campaigns'}
+        	,{'name': 'Request Long-running Report',           'url': '/lr'}
 	]	
 
 	return render_template("index.html", REPORTS=reports);
@@ -377,9 +378,10 @@ from reports import tom_detailed_inventory_non_national
 tom_local_inventory = app.route("/tom_detailed_inventory_non_national/<status>")(tom_detailed_inventory_non_national)
 tom_local_inventory = app.route("/tom_detailed_inventory_non_national/", methods=['GET','POST'])(tom_detailed_inventory_non_national)
 
-from reports import tom_publisher_promotions
-tom_publisher_promotions = app.route("/tom_publisher_promotions/<publisher>")(tom_publisher_promotions)
-tom_publisher_promotions = app.route("/tom_publisher_promotions/", methods=['GET','POST'])(tom_publisher_promotions)
+from reports import tom_promotion_detail
+#tom_publisher_promotions = app.route("/tom_publisher_promotions/?publisher=<publisher>")(tom_publisher_promotions)
+#tom_publisher_promotions = app.route("/tom_publisher_promotions/<publisher>")(tom_publisher_promotions)
+tom_promotion_detail = app.route("/tom_promotion_detail/", methods=['GET','POST'])(tom_promotion_detail)
 
 from reports import tom_breakdown
 tom_breakdown = app.route("/tom_breakdown/", methods=['GET','POST'])(tom_breakdown)

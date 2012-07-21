@@ -152,6 +152,49 @@
     </div>
     {% endif %}
 
+    {% if upstream_source == 'tom' %}
+    <div id='tom_economics' class='section-main' style='width:450px'>
+	    <h3 class='section-head'>TOM Economics</h3>
+	    <div class='section-content'>
+		    <table >
+			    <th></th><th></th>
+
+			    {% for key,value in tom_economics.items() %}
+				<tr><td>{{key}}</td><td>{{value}}</td></tr>
+			    {% endfor %}
+		    </table>
+
+	    </div>
+    </div><br><br>
+	sales_gross = ( (merchant_payout_net + cc_fees) + publisher_payout_gross + agency_fees + tom_fees)  
+    <div id='tom_breakdown_pie'>
+</div>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Type');
+        data.addColumn('number', 'Amount');
+        data.addRows([
+		['merchant_payout_net',    {{ tom_economics.merchant_payout_net }}],
+		['publisher_payout_gross',    {{ tom_economics.publisher_payout_gross }}],
+		['agency_fees',    {{ tom_economics.agency_fees }}],
+		['tom_fees',    {{ tom_economics.tom_fees }}],
+		['cc_fees',    {{ tom_economics.cc_fees }}],
+        ]);
+
+        var options = {
+          width: 400, height: 200,
+          title: 'Payout Split'
+        };
+
+        var chart = new google.visualization.PieChart(document.getElementById('tom_breakdown_pie'));
+        chart.draw(data, options);
+      }
+    </script> 
+    {% endif %}
+
     <div id='payment_breakdown' class='section-main'>
     <h3 class='section-head'>Payment Breakdown</h3>
     <div class='section-content'>
