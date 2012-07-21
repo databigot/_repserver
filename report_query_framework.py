@@ -36,6 +36,13 @@ class BaseQueryDef(object):
 	DB_name = 'DB_PBT'
 	
 	limit = None
+	qualifiers = {}
+
+	def __init__(self, **defaults):	#set initial values for the qualifiers
+		for k,v in defaults.items():
+			if k in self.qualifiers:
+				self.qualifiers[k].default = v			
+		pass
 
 	def qualify(self):
 		self.sql = self.eval_query(self.SQL_template, 
@@ -117,6 +124,7 @@ class BaseQueryDef(object):
 		for (qname, q) in self.qualifiers.iteritems():
 			z = {'dest':qname}
 			#w = self.type_context(q['metatype']) #load any type-specific defaults
+##!!TODO: confirm works with pickkv!
 			for (x,y) in {'action':'action','choices':'pick', 
 					'help':'help', 'default':'default', 
 					'metavar':'metavar', 'type':'coerce', 
@@ -156,9 +164,15 @@ class BaseQueryDef(object):
 	def from_form(self, form):
 		for qname,q in self.qualifiers.iteritems():
 			q.set(form[qname])
+		return True
 
-	def as_webform(self, FormClass):
-		return FormClass(self.to_fieldlist())
+	def as_webform(self, FormClass, **kwargs):
+		return FormClass(self.to_fieldlist(), **kwargs)
+
+	def __getitem__(self,i):
+		if i in self.qualifiers:
+			return self.qualifiers[i]
+		return None
 
 #TODO in future: make some mixin classes that can be used to make something be declarative.
 #class DeclarativeItem(object): #Idea: an abstract class to use as mixin to make something a DeclarativeItem
@@ -225,6 +239,8 @@ class BaseQualifier(object):
 #			args['value'] = getattr(q,'default', '')
 			if hasattr(q,'pick') and q.pick: args['options']= zip(q.pick, q.pick)
 			if hasattr(q,'pickkv') and q.pickkv: args['options']= q.pickkv
+			if hasattr(args,'options') and args['options'] and hasattr(q,'option_prefix'):
+				args['option_prefix'] = q.option_prefix
 
 			print 'name = %s'%qname
 			field = (F)(qname,**args)
@@ -237,7 +253,16 @@ class BaseQualifier(object):
 					# and loads me up with it's cleaned value
 		self.value_raw = value
 		return value
-		
+	def get(self):
+		return self.value_raw
+	def get_picked(self): #if chosen from a k,v list, give me the nice-name for the id picked 
+		if hasattr(self,'pickkv'):
+			for k,v in self.pickkv:
+				if k == self.value_raw:
+					return v
+			return None
+		return self.value_raw
+					
 def get_declared_qualifiers(bases, attrs):
 	qualifiers = [(qual_name, attrs.pop(qual_name)) for qual_name, obj in attrs.items() if isinstance(obj,BaseQualifier)] 
 	qualifiers.sort(key=lambda x: x[1].creation_counter)
@@ -320,18 +345,24 @@ class BooleanQualifier(BaseQualifier):
 
 		self.dict_2_attr( attribs)
 
-class IntQualifier(BaseQualifier):
-# tried unsuccessfully to not use action=store_true, but instead use coerce=bool, but just couldn't get it to work.
+class EntryQualifier(BaseQualifier):
+	def __init__(self, attribs={}):
+		super(EntryQualifier, self).__init__()
+		self.ui_widget 		= InputField
+		self.default		= ""
+
+		self.dict_2_attr( attribs)
+
+class IntQualifier(EntryQualifier):
 	def __init__(self, attribs={}):
 		super(IntQualifier, self).__init__()
-		self.ui_widget 		= InputField
 		self.coerce		= int
 		self.ui_coerce		= self.coerce 
 		self.default		= 0
 
 		self.dict_2_attr( attribs)
 
-class DateQualifier(BaseQualifier):
+class DateQualifier(BaseQualifier): 
 	def date_mask(self,x):
 		if re.match(r'^\d\d?/\d\d?$',x):
 			return x+'/%s'%datetime.datetime.today().year, '%m/%d/%Y'		#problem: it won't assume the current year!!!
@@ -380,10 +411,9 @@ class MultiChoiceQualifier(ChoiceQualifier):
 
 		self.dict_2_attr( attribs)
 
-class ListQualifier(ChoiceQualifier):
+class ListQualifier(EntryQualifier):
 	def __init__(self, attribs={}):
 		super(ListQualifier, self).__init__()
-		self.ui_widget		= InputField #'input'
 #		self.coerce 		= lambda x: [y.strip() for y in x.split(',')]
 #tried to get it to seperate by comma, but it was too hard to flatten the list
 #		self.reduce		= #must flatten the list of lists!!
@@ -437,15 +467,17 @@ class MonthPickQualifier(ChoiceQualifier):
 				target = target.replace(month=target.month-1)
 			pick_month.insert(0,(monthkey,monthvalue))
 		return pick_month
-	
-	def __init__(self, attribs={}, months_back=10):
+#	def get_picked(self):
+			
+	def __init__(self, attribs={}, allow_all=False, months_back=10):
 		super(MonthPickQualifier, self).__init__()
 		self.pickkv 		= self.list_the_months(months_back=months_back)
 		self.help 		= "choose a month"
 		self.default 		= datetime.date.today().strftime('%Y-%m')
-		self.option_prefix 	= ""
+		self.option_prefix 	= None 
 		self.ui_coerce		= lambda x: datetime.datetime.strptime(x, '%Y-%m')
-
+		if allow_all:
+			self.option_prefix = '--  ALL  --'
 		self.dict_2_attr( attribs)
 
 #TODO: create a base report that calculates the COLS

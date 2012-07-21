@@ -1,5 +1,5 @@
-from jinja2 import Template
-from flask import flash,get_flashed_messages
+#from jinja2 import Template
+from flask import flash,get_flashed_messages, render_template, render_template_string
 from utils import SortedDict
 
 class ValidationError(Exception):
@@ -25,7 +25,7 @@ class BaseField(object):
 		self.label 	= label #or (name.replace('_',' ').capitalize())		
 		self.dtype 	= dtype			#datatype: str, int, lamda x: convert(x)
 		self.default	= default		#default 
-		self.options	= options		#list of options in [k=v]
+		self.options	= options		#list of options in [(k,v),...]
 		self.option_prefix = option_prefix 	#--pick one-- 
 		self.help	= help			#tooltip msg
 		self.size 	= size
@@ -60,7 +60,7 @@ class BaseField(object):
 	def add_error(self, error):
 		self.errors += [error % self.my_label]
 
-	def self_exam(self):	
+	def self_exam(self):	#loads from value_raw -> value_clean, if ok	
 		self.errors = []
 		self.clean_me()
 		for v in self.validators:
@@ -101,7 +101,8 @@ class BaseField(object):
 			,'help'		:self.help or ''
 			}
 		context['in_error'] = len(self.errors)
-		return Template(self._html_wrapped()).render(**context)
+#		return Template(self._html_wrapped()).render(**context)
+		return render_template_string(self._html_wrapped(), **context)
 
 	def set_to_default(self):
 		self.value_raw = self.default
@@ -180,7 +181,9 @@ class BaseCoolForm(object):
 
 	def load_defaults(self):
 		for field in self.fields:
-			field.set_to_default()
+			field.set_to_default()		#sets f.value_raw <= f.default
+			field.clean_me() 		#this will set the f.value_clean <= dtype(f.value_raw), to allow us
+							#to use the form immediately, (before submit), if needed.
 
 	def redisplay_me(self, request):   #For Form handling, use this method which returns T/F, or process_form() which throws Exception if we need to redisplay
 		if request.method == 'GET': 			#assume first time through
@@ -202,7 +205,8 @@ class BaseCoolForm(object):
 				raise ErrorFormInvalid
 		return True
 
-	def am_i_ok(self):					#do a self_examination, generate errors 
+	def am_i_ok(self):					#do a self_examination, generate errors
+								# for each field, if ok, f.value_clean <= f.dtyp(f.value_raw) 
 		get_flashed_messages()				#clear any flash errors
 		field_labels = self._field_labels()
 		return (
@@ -241,7 +245,8 @@ class BaseCoolForm(object):
 		return None
 
 	def render_me(self):
- 		form = Template("""
+ 		#form = Template("""
+		template = """
 		<style type='text/css'>
 			.aligned {
 				display: inline;
@@ -359,7 +364,10 @@ class BaseCoolForm(object):
 			</div>
 			<fieldset class='aligned'>
 
-			""").render(ACTION='', title=self.title, description=self.description, 
+			"""
+#		form = Template(template).render(
+		form = render_template_string(template,
+				ACTION='', title=self.title, description=self.description, 
 				messages=get_flashed_messages(with_categories=True))
 #               fieldlist = self.make_fieldlist()
 		for field in self.fields:
