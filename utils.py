@@ -34,7 +34,7 @@ def data_to_csv(ROWS, COLS, CONTEXT):
     csvout.writerow( [col['l'] for col in COLS] );
 
     for row in ROWS:
-	csvout.writerow([ row[col['k']] 
+	csvout.writerow([ ("%s"%row[col['k']]).encode('ascii','ignore') 
 		for col in COLS] )
 
     return  csvfile.getvalue(), CSV_MIME, CSV_CTYPE
@@ -92,14 +92,14 @@ def data_to_texttable(ROWS, COLS, CONTEXT):
 		col_width[col_name] = _wid
 	justifier = {
 	#TODO: handle 'u'-type, handle 'percent', 'linkto', 'currency', etc.
-		None:		(lambda _val, _wid: unicode(_val or '').ljust(_wid))
-		,'string': 	(lambda _val, _wid: unicode(_val or '').ljust(_wid))
+		None:		(lambda _val, _wid: (_val or '').ljust(_wid))
+		,'string': 	(lambda _val, _wid: (_val or '').ljust(_wid))
 		,'number':	(lambda _val, _wid: str(_val).rjust(_wid))
 		,'date':	(lambda _val, _wid: str(_val).rjust(_wid))
 		}
 	formatter = {
-		None:		(lambda _val: unicode(_val or ''))
-		,'string': 	(lambda _val: unicode(_val or ''))
+		None:		(lambda _val: (_val or '').encode('ascii','ignore'))
+		,'string': 	(lambda _val: (_val or '').encode('ascii','ignore')) 
 		,'number':	(lambda _val: str(_val)) #commify, zero-blank, currency, percent
 		,'date':	(lambda _val: str(_val)) #format date?
 		}
@@ -120,10 +120,16 @@ def data_to_texttable(ROWS, COLS, CONTEXT):
 	print >>textout, ' /'+'+'.join(['-'*col_width[c['k']] for c in COLS])+'\\ '
 	print >>textout, ' |'+'|'.join([c['l'].center(col_width[c['k']]) for c in COLS])+'| '
 	print >>textout, ' |'+'+'.join(['-'*col_width[c['k']] for c in COLS])+'| '
-	for r in ROWS:			
-		print >>textout, u' |'+u'|'.join(
-			[justifier[c['t']](formatter[c['t']](r[c['k']]),col_width[c['k']]) 
-				for c in COLS])	+u'| '
+	for r in ROWS:	
+		try:
+			line = u' |'+u'|'.join(
+				[justifier[c['t']](formatter[c['t']](r[c['k']]),col_width[c['k']]) 
+					for c in COLS])	+u'| '
+			print >>textout, line
+		except UnicodeDecodeError,x:
+			print >>textout, "Unicode ERROR in Line"
+			print x
+			print [r[c['k']] for c in COLS]
 	print >>textout, ' \\'+'+'.join(['-'*col_width[c['k']] for c in COLS])+'/ '
 	print >>textout, ' (%s rows)'% len(ROWS)
 	return textout.getvalue(), 'text/plain', 'text/plain'
