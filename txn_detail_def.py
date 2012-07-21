@@ -21,7 +21,7 @@ class Q_Txn_Detail(QueryDef):
 				,'help'		:'Pick a Publisher to isolate to'
 		#		,'metavar'	:'publisher'
 				,'pick'		: ['225besteats', 'yollar', 'tippr', 'msn']
-				,'picksql'	: sql_pull_lookup('select name, title from core_publisher order by title;',DB_PBT)
+				,'pickkv'	: sql_pull_lookup('select name, title from core_publisher order by title;',DB_PBT)
 				})	#('ALL':None, string,required) 
 	start_dt	=DateQualifier({
 				'args'		:('-S','--start')
@@ -126,13 +126,14 @@ class Q_TXNPayment_Detail(QueryDef):
 				'args'		: ('-P','--publisher')
 				,'help'		:'Pick a Publisher to isolate to'
 		#		,'metavar'	:'publisher'
-				,'pick'		: ['225besteats', 'yollar', 'tippr', 'msn']
-				,'picksql'	: sql_pull_lookup("""
+		#		,'pick'		: ['225besteats', 'yollar', 'tippr', 'msn']
+				,'pickkv'	: sql_pull_lookup("""
 					SELECT name, title 
 						FROM core_publisher 
 						WHERE status='active' 
 						ORDER BY title;"""
 					,DB_PBT)
+				,'option_prefix':'--- ALL ---'
 				})	#('ALL':None, string,required) 
 	start_dt	=DateQualifier({
 				'label'		:'Start Date (mm/dd/yy)'
