@@ -6,6 +6,7 @@ import report_query_framework as f
 
 import datetime
 import sys
+import traceback
 import utils
 from jinja2 import Template
 
@@ -71,7 +72,7 @@ def init_parser(PROG, QUERIES): #uses QUERIES & PROG
 	parser_add_arg('-to', '--audience', nargs='+', dest='audience', default=[], metavar='email-list',
 		help='Set of people allowed access to this report.  Used as email-list for email delivery (-o option).  Currently _only_ used to email the results; but _future_ will restrict access.')
 	parser_add_arg('-n','--notify', nargs='+', dest='notify', default=[], metavar='email-list',
-		help='Send an email notification to this email addr/list, after the report runs.  Seperate multiple emails by a space.  ')
+		help='Send an email notification (but no report) to this email addr/list, after the report runs.  Seperate multiple emails by a space.  ')
 #	parser_add_arg('-cs','--custom', dest='subject', default=None,
 #		help='Custom email subject line')
 
@@ -155,68 +156,87 @@ def main():
 	#args = vars(args_obj)
 	if args_obj.sqlonly:
 		print query_obj.sql
-		return 							####
-									#Load DataSet:
+		return 								####
+	 									#Load DataSet:
 	result_set = query_obj.load_dataset()	
 	#print result_set
 	#print arguments
-									####
-	META = build_meta(args_obj, report_obj, query_obj) 		#Render Report:
-	formatter = formatter_jumptable[args_obj.format]
-	DOC_OUT, MIME_TYPE, CON_TYPE = (formatter)(result_set["ROWS"], report_obj.COLS_OUT, CONTEXT=META)
-
+										####
+	META = build_meta(args_obj, report_obj, query_obj) 			#Render Report:
 	addr_from='reporting@tippr.com'
 	subject_prefix = '[TipprReportServer] '
-									####		
-									#Store it:
-	if not args_obj.storage == 'STDOUT':
-		file_locator = None
-		file_name = utils.unique_filename(format=args_obj.format, report=report_obj.slug, by=args_obj.requestor)
-		if args_obj.storage =='S3':
-			file_locator = utils.store_doc_to_s3(DOC_OUT, file_name, 
-				headers = {'Content-Type':CON_TYPE})
-#can't get it to work yet: 
-#			file_locator = utils.url_to_tiny(file_locator)
-		if args_obj.storage =='LOCAL':
-			file_locator = utils.store_doc_to_local(DOC_OUT, file_name)
-		META['file_locator'] = file_locator
-									####
-									#Send it out to audience:
-		if args_obj.audience: #TODO: add in requestor in here or in notify.
-			deliver_to = args_obj.audience
-			if args_obj.storage=='EMAIL-ATTACH':
-				subject = 'Here is your Report'
-				body = Template(email_body_template('attach')).render(DOC_OUT=DOC_OUT, **META)
-				utils.email_senddoc(addr_from=addr_from, addr_to=deliver_to, 
-					subject=subject_prefix+subject, 
-					body=body, 
-					ctype=CON_TYPE, doc=DOC_OUT, fname=file_name)
-			else:
-				if args_obj.storage=='EMAIL-EMBED':
-					subject = 'Here is your Report'
-					body = Template(email_body_template('embed')).render(DOC_OUT=DOC_OUT, **META)
-				elif file_locator: 
-					#No point in sending if we can't send it (ATTACH, EMBED)
-					# or send a link to it
-					subject = 'Your Report is ready to be viewed'
-					body = Template(email_body_template('link')).render(DOC_OUT=DOC_OUT, **META)
-				utils.email_simple(addr_from=addr_from, addr_to=deliver_to, 
-					subject=subject_prefix+subject , body=body)
-									####
-									#Output Report-run info to STDOUT 
-		print Template(email_body_template('link')).render(DOC_OUT=DOC_OUT, **META)
-	else: #if STDOUT:
-		print Template(email_body_template('embed')).render(DOC_OUT=DOC_OUT, **META)
 
-									####
-									#Notify Requestor (+notify) of success:
-	if args_obj.notify:  #TODO: add in requestor too.
-		subject = 'Notification: Report has run'
-		body = Template(email_body_template('notify')).render(DOC_OUT=DOC_OUT, **META)
-		utils.email_simple(addr_from=addr_from, 
-			addr_to=args_obj.notify, 
-			subject='[TipprReportServer]: '+subject,
+	try:
+		formatter = formatter_jumptable[args_obj.format]
+		DOC_OUT, MIME_TYPE, CON_TYPE = (formatter)(result_set["ROWS"], report_obj.COLS_OUT, CONTEXT=META)
+
+										####		
+										#Store it:
+		if not args_obj.storage == 'STDOUT':
+			file_locator = None
+			file_name = utils.unique_filename(format=args_obj.format, report=report_obj.slug, by=args_obj.requestor)
+			if args_obj.storage =='S3':
+				file_locator = utils.store_doc_to_s3(DOC_OUT, file_name, 
+					headers = {'Content-Type':CON_TYPE})
+	#can't get it to work yet: 
+	#			file_locator = utils.url_to_tiny(file_locator)
+			if args_obj.storage =='LOCAL':
+				file_locator = utils.store_doc_to_local(DOC_OUT, file_name)
+			META['file_locator'] = file_locator
+										####
+										#Send it out to audience:
+			if args_obj.audience: #TODO: add in requestor in here or in notify.
+				deliver_to = args_obj.audience
+				if args_obj.storage=='EMAIL-ATTACH':
+					subject = 'Here is your Report'
+					body = Template(email_body_template('attach')).render(DOC_OUT=DOC_OUT, **META)
+					utils.email_senddoc(addr_from=addr_from, addr_to=deliver_to, 
+						subject=subject_prefix+subject, 
+						body=body, 
+						ctype=CON_TYPE, doc=DOC_OUT, fname=file_name)
+				else:
+					if args_obj.storage=='EMAIL-EMBED':
+						subject = 'Here is your Report'
+						body = Template(email_body_template('embed')).render(DOC_OUT=DOC_OUT, **META)
+					elif file_locator: 
+						#No point in sending if we can't send it (ATTACH, EMBED)
+						# or send a link to it
+						subject = 'Your Report is ready to be viewed'
+						body = Template(email_body_template('link')).render(DOC_OUT=DOC_OUT, **META)
+					utils.email_simple(addr_from=addr_from, addr_to=deliver_to, 
+						subject=subject_prefix+subject , body=body)
+										####
+										#Output Report-run info to STDOUT 
+			print Template(email_body_template('link')).render(DOC_OUT=DOC_OUT, **META)
+		else: #if STDOUT:
+			print Template(email_body_template('embed')).render(DOC_OUT=DOC_OUT, **META)
+
+										####
+										#Notify interested parties:
+		if (args_obj.requestor not in args_obj.audience): #if i'm not already sending the requestor the report, then send him/her the notification.			
+			args_obj.notify = (args_obj.notify or []) + [args_obj.requestor,]	#Notify Requestor (+notify) of success:
+		if args_obj.notify:  #TODO: add in requestor too.
+			subject = 'Notification: Report has run'
+			body = Template(email_body_template('notify')).render(DOC_OUT=DOC_OUT, **META)
+			utils.email_simple(addr_from=addr_from, 
+				addr_to=args_obj.notify, 
+				subject=subject_prefix+subject,
+				body= body)
+	except:
+		exc_info = sys.exc_info()
+		error_text = """
+ERROR: %s: %s
+Traceback: 
+%s
+		"""%(exc_info[0],exc_info[1], traceback.format_exc()) 
+		subject = 'ERROR in Report run'
+		body = Template(email_body_template('embed')).render(DOC_OUT=error_text, **META)
+		utils.email_simple(addr_from=addr_from,
+			addr_to=[args_obj.requestor,],
+			subject=subject_prefix+subject,
 			body= body)
+		print body							#Echo any errors locally to STDOUT
+
 
 def email_body_template(selector):
 	if selector == 'attach':
